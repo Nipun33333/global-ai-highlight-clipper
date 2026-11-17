@@ -21,6 +21,11 @@ jobs:
       YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       YOUTUBE_OAUTH_TOKEN: ${{ secrets.YOUTUBE_OAUTH_TOKEN }}
+      IG_USER_ID: ${{ secrets.IG_USER_ID }}
+      INSTAGRAM_PAGE_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_PAGE_ACCESS_TOKEN }}
+      INSTAGRAM_AUTO_UPLOAD: ${{ vars.INSTAGRAM_AUTO_UPLOAD || 'false' }}
+      INSTAGRAM_GRAPH_VERSION: ${{ vars.INSTAGRAM_GRAPH_VERSION || 'v26.0' }}
+      MAX_INSTAGRAM_REELS_PER_RUN: ${{ vars.MAX_INSTAGRAM_REELS_PER_RUN || '3' }}
       MEDIA_SOURCE_MAP_JSON: ${{ secrets.MEDIA_SOURCE_MAP_JSON }}
       SOURCE_MODE: ${{ vars.SOURCE_MODE || 'yt_dlp' }}
       LIVE_SEARCH_TERM: ${{ vars.LIVE_SEARCH_TERM || 'GTA 6 gameplay live' }}

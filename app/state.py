@@ -32,5 +32,28 @@ def save(path: Path, state: dict) -> None:
 
 
 def mark(state: dict, clip_key: str, status: str, upload_id: str | None = None) -> None:
-    state.setdefault("clips", {})[clip_key] = {"at": datetime.now(timezone.utc).isoformat(),
-                                                "status": status, "upload_id": upload_id}
+    entry = state.setdefault("clips", {}).setdefault(clip_key, {})
+    entry.update({"at": datetime.now(timezone.utc).isoformat(),
+                  "status": status, "upload_id": upload_id})
+
+
+def platform_uploaded(state: dict, clip_key: str, platform: str) -> bool:
+    record = state.get("clips", {}).get(clip_key, {})
+    entry = record.get("platforms", {}).get(platform, {})
+    if entry.get("status") == "published" and entry.get("id"):
+        return True
+    # Old state format from before Instagram support.
+    return platform == "youtube" and str(record.get("status", "")).startswith("uploaded_")
+
+
+def mark_platform(state: dict, clip_key: str, platform: str, media_id: str) -> None:
+    if platform not in {"youtube", "instagram"} or not media_id:
+        raise ValueError("Platform and media ID required")
+    entry = state.setdefault("clips", {}).setdefault(clip_key, {})
+    # Upgrade previously uploaded YouTube-only state without losing its ID.
+    if str(entry.get("status", "")).startswith("uploaded_") and entry.get("upload_id"):
+        entry.setdefault("platforms", {}).setdefault("youtube", {
+            "status": "published", "id": entry["upload_id"]
+        })
+    entry["at"] = datetime.now(timezone.utc).isoformat()
+    entry.setdefault("platforms", {})[platform] = {"status": "published", "id": media_id}

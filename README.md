@@ -1,6 +1,6 @@
 # Global AI Highlight Clipper — GTA 6 Edition
 
-GTA 6-only, worldwide YouTube highlight scanner and optional Shorts publisher. Every workflow run **first searches for GTA 6 gameplay streams currently LIVE**, then checks 10-hour-plus recordings and short videos. Source channels need at least 1,000,000 **public** subscribers. It uses timestamped positive comments / sampled live chat to find highlight candidates, Gemini free-tier models with fallback for scoring, yt-dlp section fetching and FFmpeg to make vertical **30-second Shorts** (20 seconds before a reaction window + 10 seconds after). OAuth can publish selected clips to your YouTube channel.
+GTA 6-only, worldwide YouTube highlight scanner and optional YouTube Shorts + Instagram Reels publisher. Every workflow run **first searches for GTA 6 gameplay streams currently LIVE**, then checks 10-hour-plus recordings and short videos. Source channels need at least 1,000,000 **public** subscribers. It uses timestamped positive comments / sampled live chat to find highlight candidates, Gemini free-tier models with fallback for scoring, yt-dlp section fetching and FFmpeg to make vertical **30-second Shorts** (20 seconds before a reaction window + 10 seconds after). OAuth can publish selected clips to your YouTube channel; Meta Graph API can cross-post the same local MP4 as an Instagram Reel.
 
 This repo does **not** contain per-creator license/campaign/rights checkers or channel approval lists. The operator supplies the media access and is responsible for permission and for complying with the relevant terms. A general API key or YouTube channel account does not itself demonstrate a license for every creator's footage.
 
@@ -21,7 +21,7 @@ GitHub Actions (hourly; manual workflow_dispatch also supported)
      -> scan explicit timecoded comments and rank highlights
      -> time-section extraction without a full 10h local download
   -> up to 9 separate 30s vertical Shorts/source (8-9 target)
-  -> optionally OAuth-publish each clip to your channel
+  -> optionally upload the clip to your YouTube channel and/or Instagram Reels
   -> JSON report + dedup metadata committed by workflow
 ```
 
@@ -62,6 +62,7 @@ CLIP_LEAD_SECONDS=20
 CLIP_AFTER_SECONDS=10
 AUTO_UPLOAD=false
 UPLOAD_PRIVACY=private
+INSTAGRAM_AUTO_UPLOAD=false
 ```
 
 Then run:
@@ -82,6 +83,16 @@ If you prefer your own MP4 files instead of yt-dlp, set `SOURCE_MODE=provided` a
 
 The uploader makes ordinary YouTube Shorts uploads. It does **not** create a new live broadcast on your channel. YouTube may impose API verification / privacy limitations on uploads; please verify your project's current status.
 
+## Optional Instagram Reels cross-posting
+
+The same vertical 30-second GTA 6 clip can be posted to **both** platforms or **Instagram only**, via independent switches. It is not a live broadcast on Instagram; it is a Reel after clipping. Both publishing switches are `false` by default. Upload attempts are recorded per platform, so if YouTube succeeds but Instagram fails, subsequent hourly runs will not knowingly repost the same clip to YouTube.
+
+This project uses **Meta Instagram API with Facebook Login** because its **resumable local-file upload** does not need a paid/public video host. Your account must be an **Instagram Professional (Creator/Business)** account linked to a Facebook Page. A Meta Business app / appropriate access must provide the Page access token with `instagram_basic`, `instagram_content_publish`, `pages_read_engagement` and `pages_show_list` as applicable. See [Instagram setup](docs/SETUP.md#instagram-reels-publishing). Personal-only Instagram accounts and direct Instagram username/password posting are not supported.
+
+Add GitHub Actions **secrets** `IG_USER_ID` (Instagram professional account's numeric ID) and `INSTAGRAM_PAGE_ACCESS_TOKEN` (the Page access token), then Actions **variables** `INSTAGRAM_AUTO_UPLOAD=true` and optionally `MAX_INSTAGRAM_REELS_PER_RUN=3`, `INSTAGRAM_GRAPH_VERSION=v26.0`. To also upload YouTube Shorts, keep `AUTO_UPLOAD=true` with its own YouTube OAuth secret. Never put access tokens in public variables or repository files. Local MP4 files are uploaded via Meta container -> resumable transfer -> status polling -> publish; no third-party hosting bill is required.
+
+Default `MAX_INSTAGRAM_REELS_PER_RUN=3` is a conservative hourly cap (up to 72 submissions/day), **not** a guarantee that Instagram will accept all posts. Publishing caps, account eligibility, token lifetime, rate limits and API policies apply. No Instagram posts can happen until credentials are configured and the Instagram switch is explicitly enabled. Real Instagram posting has **not** been end-to-end tested with your account.
+
 ## GitHub Actions settings
 
 | Setting | Type | Purpose |
@@ -89,6 +100,11 @@ The uploader makes ordinary YouTube Shorts uploads. It does **not** create a new
 | `YOUTUBE_API_KEY` | Secret | YouTube discovery/comments |
 | `GEMINI_API_KEY` | Secret | Model routing |
 | `YOUTUBE_OAUTH_TOKEN` | Secret | Required to enable YouTube uploads |
+| `IG_USER_ID` | Secret | Instagram professional account numeric ID |
+| `INSTAGRAM_PAGE_ACCESS_TOKEN` | Secret | Linked Facebook Page access token for the Meta API |
+| `INSTAGRAM_AUTO_UPLOAD` | Variable | `false` by default; set `true` to post Reels |
+| `MAX_INSTAGRAM_REELS_PER_RUN` | Variable | Default `3`; independent Instagram hourly cap |
+| `INSTAGRAM_GRAPH_VERSION` | Variable | Meta Graph API version (`v26.0` default) |
 | `MEDIA_SOURCE_MAP_JSON` | Secret (optional) | Video ID -> direct FFmpeg-compatible HTTPS URL |
 | `SOURCE_MODE` | Variable (optional) | `yt_dlp` (default) or `provided` |
 | `LIVE_SEARCH_TERM` | Variable | Dedicated search on every workflow start (`GTA 6 gameplay live`) |
@@ -123,6 +139,7 @@ Schedule runs at `07` minutes past every **UTC** hour (for example 08:07, 09:07 
 
 ## Reference documentation
 
+- [Meta Instagram Graph API publishing](https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api)
 - [YouTube Data API quotas](https://developers.google.com/youtube/data/determine_quota_cost)
 - [YouTube API Developer Policies](https://developers.google.com/youtube/terms/developer-policies)
 - [yt-dlp download-sections](https://github.com/yt-dlp/yt-dlp#download-options)

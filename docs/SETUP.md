@@ -46,6 +46,20 @@ Alternatively, choose `SOURCE_MODE=provided` and supply `media/<video-id>.mp4` o
 
 Without valid OAuth, automatic publishing cannot start. It uploads normal Shorts; it doesn't initiate new live broadcasts.
 
+## Instagram Reels publishing
+
+**Meta official API, not login scraping:** This integration uses the Instagram API **with Facebook Login**, as it supports direct resumable uploads of the locally generated MP4. An Instagram Professional (Business or Creator) account must be linked to a **Facebook Page** managed by your Meta app/account. A personal-only Instagram account is not supported by this API.
+
+1. In [Meta for Developers](https://developers.facebook.com/apps/) create/configure a Business app with Instagram Graph API / Facebook Login for Business. Get the appropriate permissions for your account, including `pages_show_list`, `instagram_basic`, `instagram_content_publish`, and `pages_read_engagement`, as required by your app configuration. A production deployment may require app review / access approval.
+2. Connect your **Professional Instagram account** to your Facebook Page. Use Meta Graph API Explorer to get a User token with the required Page/Instagram scopes. From `GET /me/accounts?fields=name,access_token,instagram_business_account` select the correct Page, its **Page access token** and the linked Instagram `instagram_business_account.id` (this is **not** your @handle).
+3. GitHub > repository > **Settings > Secrets and variables > Actions > Secrets**: add `IG_USER_ID` and `INSTAGRAM_PAGE_ACCESS_TOKEN`. Never put the token in a code file, README, log, issue or GitHub variable.
+4. Under **Actions > Variables** set `INSTAGRAM_AUTO_UPLOAD=true` when you're ready to publish. Optional `MAX_INSTAGRAM_REELS_PER_RUN=3` (up to 72/day if run 24 times), `INSTAGRAM_GRAPH_VERSION=v26.0`. YouTube and Instagram can be independently enabled (`AUTO_UPLOAD` governs only YouTube).
+5. Manually run the scanner and inspect `reports/latest.json`: `stats.instagram_uploaded` and each highlight's `uploads.instagram` status / returned media ID. Verify the Reel directly on Instagram. If the run fails, inspect status codes; professional/page link, permissions, token expiry and publish limits are common causes.
+
+**Mechanism:** POST to `/{ig-user-id}/media` with `media_type=REELS&upload_type=resumable`, POST the local MP4 bytes to the Meta `rupload.facebook.com` URL, poll the container until `FINISHED`, then POST to `/{ig-user-id}/media_publish`. This avoids separately hosting the clip at a public URL and avoids paid video storage. Valid Meta API access, rate limits, media requirements (vertical H.264/AAC recommended), and eligibility still apply. The integration is unit-tested with simulated responses, **not verified live against your Instagram account**. Published Instagram Reels are not equivalent to opening an Instagram live broadcast.
+
+Sources: [Meta's Instagram API guide](https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api) and [Instagram content publishing docs](https://developers.facebook.com/docs/instagram-platform/content-publishing/).
+
 ## 5. Push to your GitHub profile
 
 Create an **empty** repository `global-ai-highlight-clipper` at https://github.com/new. Extract the ZIP, open terminal in the extracted folder and run:

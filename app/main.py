@@ -8,8 +8,9 @@ from .config import Settings
 from .gemini import GeminiRouter
 from .media import find_media_source, clip_media, clip_youtube_section
 from .ranking import build_candidates, non_overlapping
-from .state import key, load, mark, save
+from .state import key, load, mark, save, mark_platform, platform_uploaded
 from .uploader import upload
+from .instagram import publish_reel
 from .youtube import YouTubeData, discover, parse_time
 from .gta6 import is_gta6_video
 from .live import LiveBuffer, buffer_window
@@ -20,7 +21,7 @@ LOG = logging.getLogger(__name__)
 
 def run_once(config: Settings) -> dict:
     config.validate()
-    report = {"generated_at": datetime.now(timezone.utc).isoformat(), "videos": [], "stats": {"discovered": 0, "analyzed": 0, "clipped": 0, "uploaded": 0, "live_found": 0, "live_analyzed": 0, "live_buffered": 0}}
+    report = {"generated_at": datetime.now(timezone.utc).isoformat(), "videos": [], "stats": {"discovered": 0, "analyzed": 0, "clipped": 0, "uploaded": 0, "instagram_uploaded": 0, "live_found": 0, "live_analyzed": 0, "live_buffered": 0}}
     if not config.youtube_api_key:
         LOG.warning("YOUTUBE_API_KEY is not set. Nothing to discover.")
     else:
@@ -29,6 +30,7 @@ def run_once(config: Settings) -> dict:
         state = load(config.state_path)
         gemini_evaluations = 0
         live_captures = 0
+        instagram_reels = 0
         videos = discover(youtube, config.search_terms, config.region_codes,
                           config.min_subscribers, config.min_long_seconds, config.max_search_calls,
                           config.live_search_term)
@@ -102,7 +104,9 @@ def run_once(config: Settings) -> dict:
                         info["highlights"].append(item)
                         clip_id = key(video["id"], highlight["timestamp"])
                         prior = state["clips"].get(clip_id)
-                        if prior and (str(prior.get("status", "")).startswith("uploaded_") or not config.auto_upload):
+                        youtube_done = not config.auto_upload or platform_uploaded(state, clip_id, "youtube")
+                        instagram_done = not config.instagram_auto_upload or platform_uploaded(state, clip_id, "instagram")
+                        if prior and youtube_done and instagram_done:
                             item["status"] = "already_processed"
                             continue
                         try:
@@ -136,17 +140,52 @@ def run_once(config: Settings) -> dict:
                                 continue
                             item["status"] = "exported"
                             report["stats"]["clipped"] += 1
-                            upload_id = None
-                            if config.auto_upload:
-                                description = (f"GTA 6 highlight\nOriginal: {info['url']}\n"
-                                               f"Creator: {video['channel_title']}\n#GTA6 #Shorts #Gaming")
-                                upload_id = upload(output, config.oauth_token,
-                                                   f"GTA 6 | {highlight['label']} #Shorts",
-                                                   description, privacy=config.upload_privacy)
-                                item["status"] = "uploaded_" + config.upload_privacy
-                                item["upload_id"] = upload_id
-                                report["stats"]["uploaded"] += 1
-                            mark(state, clip_id, item["status"], upload_id)
+                            # Upload targets are independent: Instagram failure must not
+                            # cause a duplicate YouTube post on the next hourly run.
+                            description = (f"GTA 6 highlight\nOriginal: {info['url']}\n"
+                                           f"Creator: {video['channel_title']}\n#GTA6 #Shorts #Gaming")
+                            item["uploads"] = {}
+                            failed = False
+                            if config.auto_upload and not platform_uploaded(state, clip_id, "youtube"):
+                                try:
+                                    upload_id = upload(output, config.oauth_token,
+                                                       f"GTA 6 | {highlight['label']} #Shorts",
+                                                       description, privacy=config.upload_privacy)
+                                    mark_platform(state, clip_id, "youtube", upload_id)
+                                    item["uploads"]["youtube"] = {"status": "published", "id": upload_id}
+                                    report["stats"]["uploaded"] += 1
+                                    save(config.state_path, state)
+                                except Exception as upload_error:
+                                    failed = True
+                                    item["uploads"]["youtube"] = {"status": "error", "error": str(upload_error)[:120]}
+                                    LOG.warning("YouTube upload failed for %s: %s", clip_id, type(upload_error).__name__)
+                            if config.instagram_auto_upload and not platform_uploaded(state, clip_id, "instagram"):
+                                if instagram_reels >= config.max_instagram_reels_per_run:
+                                    item["uploads"]["instagram"] = {"status": "deferred_run_limit"}
+                                else:
+                                    # Count requests even when the upload errors, so retry
+                                    # loops cannot spam the Meta publishing endpoint.
+                                    instagram_reels += 1
+                                    try:
+                                        ig_id = publish_reel(
+                                            output, config.instagram_page_token, config.instagram_user_id,
+                                            f"GTA 6 | {highlight['label']}\nOriginal: {info['url']}\n"
+                                            f"Creator: {video['channel_title']}\n#GTA6 #GTAVI #Gaming",
+                                            version=config.instagram_graph_version,
+                                        )
+                                        mark_platform(state, clip_id, "instagram", ig_id)
+                                        item["uploads"]["instagram"] = {"status": "published", "id": ig_id}
+                                        report["stats"]["instagram_uploaded"] += 1
+                                        save(config.state_path, state)
+                                    except Exception as ig_error:
+                                        failed = True
+                                        item["uploads"]["instagram"] = {"status": "error", "error": str(ig_error)[:120]}
+                                        LOG.warning("Instagram upload failed for %s: %s", clip_id, type(ig_error).__name__)
+                            item["status"] = "upload_error" if failed else (
+                                "published" if any(v.get("status") == "published" for v in item["uploads"].values())
+                                else "exported")
+                            # Keep per-platform IDs even after another platform fails.
+                            mark(state, clip_id, item["status"])
                         except Exception as clip_exc:
                             LOG.warning("Clip %s at %.1f seconds failed: %s", video["id"], highlight["timestamp"], clip_exc)
                             item["status"] = "clip_error"

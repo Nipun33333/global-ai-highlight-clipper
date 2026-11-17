@@ -17,6 +17,11 @@ class Settings:
     youtube_api_key: str = os.getenv("YOUTUBE_API_KEY", "")
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
     oauth_token: str = os.getenv("YOUTUBE_OAUTH_TOKEN", "")
+    instagram_user_id: str = os.getenv("IG_USER_ID", "")
+    instagram_page_token: str = os.getenv("INSTAGRAM_PAGE_ACCESS_TOKEN", "")
+    instagram_graph_version: str = os.getenv("INSTAGRAM_GRAPH_VERSION", "v26.0")
+    instagram_auto_upload: bool = os.getenv("INSTAGRAM_AUTO_UPLOAD", "false").lower() == "true"
+    max_instagram_reels_per_run: int = int(os.getenv("MAX_INSTAGRAM_REELS_PER_RUN", "3"))
     search_terms: tuple[str, ...] = csv_env("SEARCH_TERMS", "GTA 6 live,GTA VI gameplay,GTA 6 shorts")
     region_codes: tuple[str, ...] = csv_env("REGION_CODES", "US,IN,GB,JP,BR")
     min_subscribers: int = int(os.getenv("MIN_SUBSCRIBERS", "1000000"))
@@ -78,3 +83,12 @@ class Settings:
             raise ValueError("UPLOAD_PRIVACY must be private, unlisted or public")
         if self.auto_upload and not self.oauth_token:
             raise ValueError("AUTO_UPLOAD=true requires YOUTUBE_OAUTH_TOKEN")
+        if not 0 <= self.max_instagram_reels_per_run <= 9:
+            raise ValueError("MAX_INSTAGRAM_REELS_PER_RUN must be between 0 and 9")
+        if self.instagram_auto_upload:
+            if not self.instagram_page_token or not self.instagram_user_id:
+                raise ValueError("INSTAGRAM_AUTO_UPLOAD=true requires IG_USER_ID and INSTAGRAM_PAGE_ACCESS_TOKEN")
+            if not self.instagram_user_id.isdecimal():
+                raise ValueError("IG_USER_ID must be numeric")
+            if self.output_format != "vertical":
+                raise ValueError("Instagram Reels output must be vertical")
