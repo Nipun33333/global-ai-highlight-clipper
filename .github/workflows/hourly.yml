@@ -54,6 +54,8 @@ jobs:
         run: pip install -r requirements.txt
       - name: Verify FFmpeg
         run: ffmpeg -version | head -n 1
+      - name: Clear last run report (avoid showing stale data after failure)
+        run: rm -f reports/latest.json
       - name: Scan live GTA 6 first, then VOD and Shorts
         run: python -m app.main
       - name: Explain scan outcome

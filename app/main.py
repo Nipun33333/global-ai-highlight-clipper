@@ -79,6 +79,8 @@ def run_once(config: Settings) -> dict:
                         except MediaAccessError as buffer_error:
                             capture_failure = buffer_error
                             info["capture_note"] = f"Live media restricted ({buffer_error.reason})"
+                            info["media_restriction"] = buffer_error.reason
+                            report["stats"]["media_restricted"] += 1
                         except Exception as buffer_error:
                             info["capture_note"] = f"Live buffer unavailable: {type(buffer_error).__name__}"
                     if video["is_live"]:
@@ -221,9 +223,10 @@ def run_once(config: Settings) -> dict:
                         except MediaAccessError as media_exc:
                             item["status"] = "media_restricted"
                             item["error_code"] = media_exc.reason
+                            if not info.get("media_restriction"):
+                                report["stats"]["media_restricted"] += 1
                             info["media_restriction"] = media_exc.reason
                             info["media_source_hint"] = "Use an authorized direct HTTPS media source or operator-provided MP4"
-                            report["stats"]["media_restricted"] += 1
                             LOG.warning("Media blocked for %s (%s); skipping further fetches", video["id"], media_exc.reason)
                             break
                         except Exception as clip_exc:
