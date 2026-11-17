@@ -28,7 +28,12 @@ def save(path: Path, state: dict) -> None:
         except (KeyError, TypeError, ValueError):
             continue
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"clips": kept}, indent=2), encoding="utf8")
+    recent_hours = {
+        h: record for h, record in state.get("hourly_upload_attempts", {}).items()
+        if isinstance(h, str) and h >= cutoff.strftime("%Y-%m-%dT%H")
+        and isinstance(record, dict)
+    }
+    path.write_text(json.dumps({"clips": kept, "hourly_upload_attempts": recent_hours}, indent=2), encoding="utf8")
 
 
 def mark(state: dict, clip_key: str, status: str, upload_id: str | None = None) -> None:
@@ -57,3 +62,19 @@ def mark_platform(state: dict, clip_key: str, platform: str, media_id: str) -> N
         })
     entry["at"] = datetime.now(timezone.utc).isoformat()
     entry.setdefault("platforms", {})[platform] = {"status": "published", "id": media_id}
+
+
+def hour_has_attempt(state: dict, platform: str, utc_hour: str) -> bool:
+    """A platform gets at most one upload request in each UTC-hour bucket."""
+    return platform in state.get("hourly_upload_attempts", {}).get(utc_hour, {})
+
+
+def reserve_hour(state: dict, platform: str, utc_hour: str, clip_key: str) -> bool:
+    """Reserve before API I/O: a timeout must not trigger another same-hour post."""
+    if platform not in {"youtube", "instagram"}:
+        raise ValueError("Unexpected platform")
+    attempts = state.setdefault("hourly_upload_attempts", {}).setdefault(utc_hour, {})
+    if platform in attempts:
+        return False
+    attempts[platform] = {"clip": clip_key, "reserved_at": datetime.now(timezone.utc).isoformat()}
+    return True

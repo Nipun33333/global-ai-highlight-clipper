@@ -8,7 +8,7 @@ from .config import Settings
 from .gemini import GeminiRouter
 from .media import find_media_source, clip_media, clip_youtube_section
 from .ranking import build_candidates, non_overlapping
-from .state import key, load, mark, save, mark_platform, platform_uploaded
+from .state import key, load, mark, save, mark_platform, platform_uploaded, hour_has_attempt, reserve_hour
 from .uploader import upload
 from .instagram import publish_reel
 from .youtube import YouTubeData, discover, parse_time
@@ -17,6 +17,11 @@ from .live import LiveBuffer, buffer_window
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 LOG = logging.getLogger(__name__)
+
+
+def current_utc_hour() -> str:
+    """Recheck on each upload; a job may cross the hour boundary."""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H")
 
 
 def run_once(config: Settings) -> dict:
@@ -30,13 +35,25 @@ def run_once(config: Settings) -> dict:
         state = load(config.state_path)
         gemini_evaluations = 0
         live_captures = 0
-        instagram_reels = 0
+        attempted_this_run: set[str] = set()
+        enabled_platforms = {
+            "youtube": config.auto_upload,
+            "instagram": config.instagram_auto_upload,
+        }
         videos = discover(youtube, config.search_terms, config.region_codes,
                           config.min_subscribers, config.min_long_seconds, config.max_search_calls,
                           config.live_search_term)
         report["stats"]["discovered"] = len(videos)
         report["stats"]["live_found"] = sum(bool(v["is_live"]) for v in videos)
         for video in videos[:config.max_videos]:
+            # A workflow invocation never publishes more than one clip per platform.
+            # It also respects reservations from earlier runs within the same UTC hour.
+            if any(enabled_platforms.values()) and not any(
+                active and platform not in attempted_this_run
+                and not hour_has_attempt(state, platform, current_utc_hour())
+                for platform, active in enabled_platforms.items()
+            ):
+                break
             if not is_gta6_video(video.get("title", "")):
                 continue  # additional topic gate; never export non-GTA-6 videos
             info = {k: video[k] for k in ("id", "title", "channel_id", "channel_title", "subscribers", "duration", "is_live", "is_short")}
@@ -109,6 +126,15 @@ def run_once(config: Settings) -> dict:
                         if prior and youtube_done and instagram_done:
                             item["status"] = "already_processed"
                             continue
+                        targets = [
+                            platform for platform, active in enabled_platforms.items()
+                            if active and platform not in attempted_this_run
+                            and not platform_uploaded(state, clip_id, platform)
+                            and not hour_has_attempt(state, platform, current_utc_hour())
+                        ]
+                        if any(enabled_platforms.values()) and not targets:
+                            item["status"] = "already_processed_or_hourly_limit"
+                            continue
                         try:
                             source = find_media_source(video["id"], config.media_dir)
                             if source:
@@ -140,57 +166,58 @@ def run_once(config: Settings) -> dict:
                                 continue
                             item["status"] = "exported"
                             report["stats"]["clipped"] += 1
-                            # Upload targets are independent: Instagram failure must not
-                            # cause a duplicate YouTube post on the next hourly run.
+                            # Both platforms receive the SAME rendered clip, max one attempt
+                            # per UTC hour and per workflow run. A failed/unknown-result request
+                            # consumes the hour too, preventing aggressive duplicate retries.
                             description = (f"GTA 6 highlight\nOriginal: {info['url']}\n"
                                            f"Creator: {video['channel_title']}\n#GTA6 #Shorts #Gaming")
                             item["uploads"] = {}
                             failed = False
-                            if config.auto_upload and not platform_uploaded(state, clip_id, "youtube"):
+                            for platform in targets:
+                                hour = current_utc_hour()
+                                if not reserve_hour(state, platform, hour, clip_id):
+                                    item["uploads"][platform] = {"status": "deferred_hourly_limit"}
+                                    continue
+                                attempted_this_run.add(platform)
+                                # Persist locally BEFORE calling the external API.
+                                save(config.state_path, state)
                                 try:
-                                    upload_id = upload(output, config.oauth_token,
-                                                       f"GTA 6 | {highlight['label']} #Shorts",
-                                                       description, privacy=config.upload_privacy)
-                                    mark_platform(state, clip_id, "youtube", upload_id)
-                                    item["uploads"]["youtube"] = {"status": "published", "id": upload_id}
-                                    report["stats"]["uploaded"] += 1
-                                    save(config.state_path, state)
-                                except Exception as upload_error:
-                                    failed = True
-                                    item["uploads"]["youtube"] = {"status": "error", "error": str(upload_error)[:120]}
-                                    LOG.warning("YouTube upload failed for %s: %s", clip_id, type(upload_error).__name__)
-                            if config.instagram_auto_upload and not platform_uploaded(state, clip_id, "instagram"):
-                                if instagram_reels >= config.max_instagram_reels_per_run:
-                                    item["uploads"]["instagram"] = {"status": "deferred_run_limit"}
-                                else:
-                                    # Count requests even when the upload errors, so retry
-                                    # loops cannot spam the Meta publishing endpoint.
-                                    instagram_reels += 1
-                                    try:
-                                        ig_id = publish_reel(
+                                    if platform == "youtube":
+                                        media_id = upload(
+                                            output, config.oauth_token,
+                                            f"GTA 6 | {highlight['label']} #Shorts",
+                                            description, privacy=config.upload_privacy,
+                                        )
+                                        report["stats"]["uploaded"] += 1
+                                    else:
+                                        media_id = publish_reel(
                                             output, config.instagram_page_token, config.instagram_user_id,
                                             f"GTA 6 | {highlight['label']}\nOriginal: {info['url']}\n"
                                             f"Creator: {video['channel_title']}\n#GTA6 #GTAVI #Gaming",
                                             version=config.instagram_graph_version,
                                         )
-                                        mark_platform(state, clip_id, "instagram", ig_id)
-                                        item["uploads"]["instagram"] = {"status": "published", "id": ig_id}
                                         report["stats"]["instagram_uploaded"] += 1
-                                        save(config.state_path, state)
-                                    except Exception as ig_error:
-                                        failed = True
-                                        item["uploads"]["instagram"] = {"status": "error", "error": str(ig_error)[:120]}
-                                        LOG.warning("Instagram upload failed for %s: %s", clip_id, type(ig_error).__name__)
+                                    mark_platform(state, clip_id, platform, media_id)
+                                    item["uploads"][platform] = {"status": "published", "id": media_id}
+                                    save(config.state_path, state)
+                                except Exception as upload_error:
+                                    failed = True
+                                    item["uploads"][platform] = {
+                                        "status": "error", "error": str(upload_error)[:120]
+                                    }
+                                    LOG.warning("%s upload failed for %s: %s",
+                                                platform, clip_id, type(upload_error).__name__)
                             item["status"] = "upload_error" if failed else (
                                 "published" if any(v.get("status") == "published" for v in item["uploads"].values())
                                 else "exported")
-                            # Keep per-platform IDs even after another platform fails.
                             mark(state, clip_id, item["status"])
                         except Exception as clip_exc:
                             LOG.warning("Clip %s at %.1f seconds failed: %s", video["id"], highlight["timestamp"], clip_exc)
                             item["status"] = "clip_error"
                             item["error"] = f"{type(clip_exc).__name__}: {str(clip_exc)[:140]}"
                             continue
+                        if attempted_this_run:
+                            break
             except Exception as exc:
                 LOG.exception("Processing video %s failed", video["id"])
                 info["error"] = f"{type(exc).__name__}: {str(exc)[:180]}"

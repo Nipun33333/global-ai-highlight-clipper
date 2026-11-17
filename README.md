@@ -63,6 +63,7 @@ CLIP_AFTER_SECONDS=10
 AUTO_UPLOAD=false
 UPLOAD_PRIVACY=private
 INSTAGRAM_AUTO_UPLOAD=false
+# Hard cap: max 1 YouTube Short + 1 Instagram Reel per UTC hour.
 ```
 
 Then run:
@@ -85,13 +86,13 @@ The uploader makes ordinary YouTube Shorts uploads. It does **not** create a new
 
 ## Optional Instagram Reels cross-posting
 
-The same vertical 30-second GTA 6 clip can be posted to **both** platforms or **Instagram only**, via independent switches. It is not a live broadcast on Instagram; it is a Reel after clipping. Both publishing switches are `false` by default. Upload attempts are recorded per platform, so if YouTube succeeds but Instagram fails, subsequent hourly runs will not knowingly repost the same clip to YouTube.
+The same vertical 30-second GTA 6 clip can be posted to **both** platforms or **Instagram only**, via independent switches. Each hourly run picks at most one eligible highlight to publish to its enabled destinations; it does not upload all 8–9 candidates. It is not a live broadcast on Instagram; it is a Reel after clipping. Both publishing switches are `false` by default. Upload attempts are reserved per platform and UTC-hour in persisted state, so a manual rerun in the same hour will not trigger another post. If YouTube succeeds but Instagram fails, later runs will not knowingly repost the same clip to YouTube. A failed/ambiguous request also counts as that hour's attempt; it may be retried in a later hour.
 
 This project uses **Meta Instagram API with Facebook Login** because its **resumable local-file upload** does not need a paid/public video host. Your account must be an **Instagram Professional (Creator/Business)** account linked to a Facebook Page. A Meta Business app / appropriate access must provide the Page access token with `instagram_basic`, `instagram_content_publish`, `pages_read_engagement` and `pages_show_list` as applicable. See [Instagram setup](docs/SETUP.md#instagram-reels-publishing). Personal-only Instagram accounts and direct Instagram username/password posting are not supported.
 
-Add GitHub Actions **secrets** `IG_USER_ID` (Instagram professional account's numeric ID) and `INSTAGRAM_PAGE_ACCESS_TOKEN` (the Page access token), then Actions **variables** `INSTAGRAM_AUTO_UPLOAD=true` and optionally `MAX_INSTAGRAM_REELS_PER_RUN=3`, `INSTAGRAM_GRAPH_VERSION=v26.0`. To also upload YouTube Shorts, keep `AUTO_UPLOAD=true` with its own YouTube OAuth secret. Never put access tokens in public variables or repository files. Local MP4 files are uploaded via Meta container -> resumable transfer -> status polling -> publish; no third-party hosting bill is required.
+Add GitHub Actions **secrets** `IG_USER_ID` (Instagram professional account's numeric ID) and `INSTAGRAM_PAGE_ACCESS_TOKEN` (the Page access token), then Actions **variables** `INSTAGRAM_AUTO_UPLOAD=true` and optionally `INSTAGRAM_GRAPH_VERSION=v26.0`. To also upload YouTube Shorts, keep `AUTO_UPLOAD=true` with its own YouTube OAuth secret. Never put access tokens in public variables or repository files. Local MP4 files are uploaded via Meta container -> resumable transfer -> status polling -> publish; no third-party hosting bill is required.
 
-Default `MAX_INSTAGRAM_REELS_PER_RUN=3` is a conservative hourly cap (up to 72 submissions/day), **not** a guarantee that Instagram will accept all posts. Publishing caps, account eligibility, token lifetime, rate limits and API policies apply. No Instagram posts can happen until credentials are configured and the Instagram switch is explicitly enabled. Real Instagram posting has **not** been end-to-end tested with your account.
+A **hard limit of one upload attempt per platform per UTC hour** applies to both scheduled and manual runs (maximum 24 YouTube Shorts + 24 Instagram Reels per 24h if every hour succeeds). Publishing caps, account eligibility, token lifetime, rate limits and API policies apply. No Instagram posts can happen until credentials are configured and the Instagram switch is explicitly enabled. Real Instagram posting has **not** been end-to-end tested with your account.
 
 ## GitHub Actions settings
 
@@ -103,7 +104,6 @@ Default `MAX_INSTAGRAM_REELS_PER_RUN=3` is a conservative hourly cap (up to 72 s
 | `IG_USER_ID` | Secret | Instagram professional account numeric ID |
 | `INSTAGRAM_PAGE_ACCESS_TOKEN` | Secret | Linked Facebook Page access token for the Meta API |
 | `INSTAGRAM_AUTO_UPLOAD` | Variable | `false` by default; set `true` to post Reels |
-| `MAX_INSTAGRAM_REELS_PER_RUN` | Variable | Default `3`; independent Instagram hourly cap |
 | `INSTAGRAM_GRAPH_VERSION` | Variable | Meta Graph API version (`v26.0` default) |
 | `MEDIA_SOURCE_MAP_JSON` | Secret (optional) | Video ID -> direct FFmpeg-compatible HTTPS URL |
 | `SOURCE_MODE` | Variable (optional) | `yt_dlp` (default) or `provided` |

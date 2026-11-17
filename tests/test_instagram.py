@@ -132,19 +132,28 @@ def test_upload_on_both_platforms_and_retry_only_failed_one(monkeypatch, tmp_pat
                      instagram_auto_upload=True, instagram_page_token='ig-mock',
                      instagram_user_id='123', state_path=tmp_path / 'state.json',
                      report_path=tmp_path / 'report.json', output_dir=tmp_path)
+    clock = {'hour': '2026-11-18T08'}
+    monkeypatch.setattr(main, 'current_utc_hour', lambda: clock['hour'])
     first = main.run_once(config)
     assert first['stats']['uploaded'] == 1
     assert first['stats']['instagram_uploaded'] == 0
     assert first['videos'][0]['highlights'][0]['uploads']['instagram']['status'] == 'error'
 
+    # A second manual run in the SAME UTC hour cannot retry either platform.
     second = main.run_once(config)
     assert second['stats']['uploaded'] == 0
-    assert second['stats']['instagram_uploaded'] == 1
-    assert len(yt_ids) == 1
-    assert len(ig_ids) == 2
+    assert second['stats']['instagram_uploaded'] == 0
+    assert len(yt_ids) == 1 and len(ig_ids) == 1
+
+    # The failed destination can retry one hour later without duplicating YT.
+    clock['hour'] = '2026-11-18T09'
+    third = main.run_once(config)
+    assert third['stats']['uploaded'] == 0
+    assert third['stats']['instagram_uploaded'] == 1
+    assert len(yt_ids) == 1 and len(ig_ids) == 2
     state = load(config.state_path)
     assert platform_uploaded(state, 'ABC12345678:90', 'youtube')
     assert platform_uploaded(state, 'ABC12345678:90', 'instagram')
-    third = main.run_once(config)
-    assert third['videos'][0]['highlights'][0]['status'] == 'already_processed'
+    fourth = main.run_once(config)
+    assert fourth['videos'][0]['highlights'][0]['status'] == 'already_processed'
     assert len(yt_ids) == 1 and len(ig_ids) == 2

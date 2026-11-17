@@ -53,7 +53,7 @@ Without valid OAuth, automatic publishing cannot start. It uploads normal Shorts
 1. In [Meta for Developers](https://developers.facebook.com/apps/) create/configure a Business app with Instagram Graph API / Facebook Login for Business. Get the appropriate permissions for your account, including `pages_show_list`, `instagram_basic`, `instagram_content_publish`, and `pages_read_engagement`, as required by your app configuration. A production deployment may require app review / access approval.
 2. Connect your **Professional Instagram account** to your Facebook Page. Use Meta Graph API Explorer to get a User token with the required Page/Instagram scopes. From `GET /me/accounts?fields=name,access_token,instagram_business_account` select the correct Page, its **Page access token** and the linked Instagram `instagram_business_account.id` (this is **not** your @handle).
 3. GitHub > repository > **Settings > Secrets and variables > Actions > Secrets**: add `IG_USER_ID` and `INSTAGRAM_PAGE_ACCESS_TOKEN`. Never put the token in a code file, README, log, issue or GitHub variable.
-4. Under **Actions > Variables** set `INSTAGRAM_AUTO_UPLOAD=true` when you're ready to publish. Optional `MAX_INSTAGRAM_REELS_PER_RUN=3` (up to 72/day if run 24 times), `INSTAGRAM_GRAPH_VERSION=v26.0`. YouTube and Instagram can be independently enabled (`AUTO_UPLOAD` governs only YouTube).
+4. Under **Actions > Variables** set `INSTAGRAM_AUTO_UPLOAD=true` when you're ready to publish. The cap is hard-coded at **1 attempt per platform per UTC hour**; optional `INSTAGRAM_GRAPH_VERSION=v26.0`. YouTube and Instagram can be independently enabled (`AUTO_UPLOAD` governs only YouTube).
 5. Manually run the scanner and inspect `reports/latest.json`: `stats.instagram_uploaded` and each highlight's `uploads.instagram` status / returned media ID. Verify the Reel directly on Instagram. If the run fails, inspect status codes; professional/page link, permissions, token expiry and publish limits are common causes.
 
 **Mechanism:** POST to `/{ig-user-id}/media` with `media_type=REELS&upload_type=resumable`, POST the local MP4 bytes to the Meta `rupload.facebook.com` URL, poll the container until `FINISHED`, then POST to `/{ig-user-id}/media_publish`. This avoids separately hosting the clip at a public URL and avoids paid video storage. Valid Meta API access, rate limits, media requirements (vertical H.264/AAC recommended), and eligibility still apply. The integration is unit-tested with simulated responses, **not verified live against your Instagram account**. Published Instagram Reels are not equivalent to opening an Instagram live broadcast.
@@ -93,3 +93,12 @@ The Python tests include simulated live-chat and live-buffer integration but req
 - Gemini free-tier rate limits and model access are not fixed guarantees. The router tries only configured verified free candidates, then local scoring.
 - Site video playback restrictions and authenticated live playback may prevent `yt-dlp` from getting individual sections.
 - If you start with private uploads, changing `UPLOAD_PRIVACY` to public later does not retroactively change already-uploaded videos.
+
+
+## One short per hour on each platform
+
+The hourly scanner is allowed to **attempt at most one YouTube Short and one Instagram Reel upload in each UTC-hour bucket**, even if manually rerun. It uses the same candidate MP4 for both platforms when both are enabled. The 8–9 highlight detection target remains but only one highlight is selected for publishing in a run. A failed or timed-out upload still consumes the hour's attempt, so unexpected API responses do not trigger immediate duplicate uploads.
+
+Cross-run limits live in `state/processed.json` (`hourly_upload_attempts`) and are committed by the GitHub Actions workflow. This is best-effort idempotency, not a transactional guarantee: a runner crash, rejected state push, unknown API result or workflows from other installations can result in duplicates. The workflow's concurrency group serializes runs in this repository. GitHub scheduling is not exact and a missing video, absent API credentials or API failure can mean zero uploads in an hour.
+
+The workflow runs at minute **07 UTC** (minute **37 IST**) every hour, not at exactly HH:00 IST. Never store tokens in the repository.
