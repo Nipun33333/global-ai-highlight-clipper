@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+client_secret.json
+.youtube_oauth_token.json
+*oauth*token*.json
+__pycache__/
+.pytest_cache/
+.venv/
+*.pyc
+media/
+output/
+*.mp4
+*.mov
+*.mkv
+*.ts
+.DS_Store
