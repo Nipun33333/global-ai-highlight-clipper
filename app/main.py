@@ -6,13 +6,13 @@ from datetime import datetime, timezone
 
 from .config import Settings
 from .gemini import GeminiRouter
-from .media import find_media_source, clip_media, clip_youtube_section
+from .media import find_media_source, clip_media, clip_youtube_section, MediaAccessError
 from .ranking import build_candidates, non_overlapping
 from .state import key, load, mark, save, mark_platform, platform_uploaded, hour_has_attempt, reserve_hour
 from .uploader import upload
 from .instagram import publish_reel
 from .youtube import YouTubeData, discover, parse_time
-from .gta6 import is_gta6_video
+from .gta6 import is_gta6_gameplay_video
 from .live import LiveBuffer, buffer_window
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -26,7 +26,7 @@ def current_utc_hour() -> str:
 
 def run_once(config: Settings) -> dict:
     config.validate()
-    report = {"generated_at": datetime.now(timezone.utc).isoformat(), "videos": [], "stats": {"discovered": 0, "analyzed": 0, "clipped": 0, "uploaded": 0, "instagram_uploaded": 0, "live_found": 0, "live_analyzed": 0, "live_buffered": 0}}
+    report = {"generated_at": datetime.now(timezone.utc).isoformat(), "videos": [], "stats": {"discovered": 0, "analyzed": 0, "clipped": 0, "uploaded": 0, "instagram_uploaded": 0, "live_found": 0, "live_analyzed": 0, "live_buffered": 0, "media_restricted": 0, "gemini_fallbacks": 0}}
     if not config.youtube_api_key:
         LOG.warning("YOUTUBE_API_KEY is not set. Nothing to discover.")
     else:
@@ -54,7 +54,7 @@ def run_once(config: Settings) -> dict:
                 for platform, active in enabled_platforms.items()
             ):
                 break
-            if not is_gta6_video(video.get("title", "")):
+            if not is_gta6_gameplay_video(video.get("title", "")):
                 continue  # additional topic gate; never export non-GTA-6 videos
             info = {k: video[k] for k in ("id", "title", "channel_id", "channel_title", "subscribers", "duration", "is_live", "is_short")}
             info["url"] = f"https://www.youtube.com/watch?v={video['id']}"
@@ -71,12 +71,16 @@ def run_once(config: Settings) -> dict:
                 # Capture and chat polling run concurrently. No all-day recorder.
                 with ExitStack() as stack:
                     capture = None
+                    capture_failure = None
                     if use_live_buffer:
                         live_captures += 1
                         try:
                             capture = stack.enter_context(LiveBuffer(video["id"], config.live_capture_seconds))
+                        except MediaAccessError as buffer_error:
+                            capture_failure = buffer_error
+                            info["capture_note"] = f"Live media restricted ({buffer_error.reason})"
                         except Exception as buffer_error:
-                            info["capture_note"] = f"Live buffer unavailable: {str(buffer_error)[:120]}"
+                            info["capture_note"] = f"Live buffer unavailable: {type(buffer_error).__name__}"
                     if video["is_live"]:
                         if not video["chat_id"] or not stream_start:
                             info["note"] = "Live chat unavailable or broadcast start time missing"
@@ -104,6 +108,7 @@ def run_once(config: Settings) -> dict:
                                                  config.clip_lead, config.clip_after, config.min_score,
                                                  duration=0 if video["is_live"] else video["duration"])
                     info["highlight_count"] = len(highlights)
+                    report["stats"]["gemini_fallbacks"] = router.fallback_count
                     if len(highlights) < config.target_clips_per_video:
                         info["note"] = "Fewer than 8-9 distinct positive reaction clusters in sampled chat/comments"
                     report["stats"]["analyzed"] += 1
@@ -137,6 +142,8 @@ def run_once(config: Settings) -> dict:
                             continue
                         try:
                             source = find_media_source(video["id"], config.media_dir)
+                            if capture_failure is not None and not source:
+                                raise capture_failure
                             if source:
                                 output = clip_media(source, video["id"], highlight["start"],
                                                     highlight["end"] - highlight["start"],
@@ -211,6 +218,14 @@ def run_once(config: Settings) -> dict:
                                 "published" if any(v.get("status") == "published" for v in item["uploads"].values())
                                 else "exported")
                             mark(state, clip_id, item["status"])
+                        except MediaAccessError as media_exc:
+                            item["status"] = "media_restricted"
+                            item["error_code"] = media_exc.reason
+                            info["media_restriction"] = media_exc.reason
+                            info["media_source_hint"] = "Use an authorized direct HTTPS media source or operator-provided MP4"
+                            report["stats"]["media_restricted"] += 1
+                            LOG.warning("Media blocked for %s (%s); skipping further fetches", video["id"], media_exc.reason)
+                            break
                         except Exception as clip_exc:
                             LOG.warning("Clip %s at %.1f seconds failed: %s", video["id"], highlight["timestamp"], clip_exc)
                             item["status"] = "clip_error"
@@ -222,6 +237,7 @@ def run_once(config: Settings) -> dict:
                 LOG.exception("Processing video %s failed", video["id"])
                 info["error"] = f"{type(exc).__name__}: {str(exc)[:180]}"
         save(config.state_path, state)
+    report["status"] = "clips_generated" if report["stats"]["clipped"] else "scan_completed_no_clips"
     config.report_path.parent.mkdir(parents=True, exist_ok=True)
     config.report_path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf8")
     LOG.info("Report saved: %s; stats=%s", config.report_path, report["stats"])

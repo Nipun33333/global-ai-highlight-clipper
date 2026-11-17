@@ -7,7 +7,7 @@ import re
 import time
 from typing import Any
 
-from .gta6 import is_gta6_video
+from .gta6 import is_gta6_gameplay_video
 
 import requests
 
@@ -163,7 +163,7 @@ def discover(yt: YouTubeData, terms: tuple[str, ...], regions: tuple[str, ...], 
     for video in videos:
         snip = video.get("snippet", {})
         # Defense-in-depth: only explicitly GTA 6-titled videos survive discovery.
-        if not is_gta6_video(snip.get("title", "")):
+        if not is_gta6_gameplay_video(snip.get("title", "")):
             continue
         channel_id = snip.get("channelId", "")
         count = subs.get(channel_id, 0)

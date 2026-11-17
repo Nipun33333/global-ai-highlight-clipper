@@ -14,7 +14,7 @@ import sys
 from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
 
-from .media import VIDEO_ID_PATTERN
+from .media import VIDEO_ID_PATTERN, classify_media_error
 
 LOG = logging.getLogger(__name__)
 
@@ -81,6 +81,9 @@ class LiveBuffer:
             )
             LOG.info("Started bounded %ss live capture for %s", self.seconds, self.video_id)
             return self
+        except subprocess.CalledProcessError as exc:
+            self.__exit__(None, None, None)
+            raise classify_media_error(exc.stderr or exc.stdout) from exc
         except Exception:
             self.__exit__(None, None, None)
             raise

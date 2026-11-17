@@ -39,7 +39,7 @@ jobs:
       CLIP_AFTER_SECONDS: '10'
       AUTO_UPLOAD: ${{ vars.AUTO_UPLOAD || 'false' }}
       UPLOAD_PRIVACY: ${{ vars.UPLOAD_PRIVACY || 'private' }}
-      SEARCH_TERMS: ${{ vars.SEARCH_TERMS || 'GTA 6 live,GTA VI gameplay,GTA 6 shorts' }}
+      SEARCH_TERMS: ${{ vars.SEARCH_TERMS || 'GTA 6 gameplay live,GTA VI gameplay long,GTA 6 gameplay shorts' }}
       REGION_CODES: ${{ vars.REGION_CODES || 'US,IN,GB,JP,BR' }}
       FREE_MODEL_CANDIDATES: ${{ vars.FREE_MODEL_CANDIDATES || 'gemini-2.5-flash-lite,gemini-2.5-flash,gemini-3-flash-preview' }}
     steps:
@@ -56,6 +56,9 @@ jobs:
         run: ffmpeg -version | head -n 1
       - name: Scan live GTA 6 first, then VOD and Shorts
         run: python -m app.main
+      - name: Explain scan outcome
+        if: always()
+        run: python scripts/print_scan_summary.py
       - name: Persist dedup state and public metadata report
         run: |
           git config user.name 'github-actions[bot]'

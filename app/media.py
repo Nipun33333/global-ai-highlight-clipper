@@ -15,6 +15,21 @@ from urllib.parse import urlparse
 
 VIDEO_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{11}$")
 
+class MediaAccessError(RuntimeError):
+    def __init__(self, reason:str):
+        self.reason=reason
+        super().__init__(reason)
+
+def classify_media_error(stderr)->MediaAccessError:
+    # Never include raw stderr or signed media URLs in reports.
+    s=(stderr.decode("utf8","replace") if isinstance(stderr,bytes) else str(stderr or "")).casefold()
+    if "sign in to confirm" in s or "not a bot" in s:return MediaAccessError("youtube_bot_check")
+    if "private video" in s or "members-only" in s:return MediaAccessError("private_video")
+    if "not available in your country" in s:return MediaAccessError("geo_restricted")
+    if "403" in s or "forbidden" in s:return MediaAccessError("playback_forbidden")
+    return MediaAccessError("playback_unavailable")
+
+
 
 def find_media_source(video_id: str, media_dir: Path):
     """Use local file or configured direct HTTPS media URL if present."""
@@ -34,6 +49,8 @@ def find_media_source(video_id: str, media_dir: Path):
     parsed = urlparse(url)
     # A normal YouTube watch URL is not a direct FFmpeg media input.
     if parsed.scheme != "https" or not parsed.hostname:
+        return None
+    if parsed.hostname.lower() in {"youtube.com", "www.youtube.com", "youtu.be", "m.youtube.com"}:
         return None
     return url
 
@@ -79,7 +96,10 @@ def clip_youtube_section(video_id: str, start: float, duration: float,
     with TemporaryDirectory(prefix="gta6-section-") as directory:
         tmp = Path(directory)
         cmd = section_command(video_id, start, duration, tmp / "segment.%(ext)s")
-        subprocess.run(cmd, check=True, timeout=900)
+        try:
+            subprocess.run(cmd, check=True, timeout=900, capture_output=True, text=True)
+        except subprocess.CalledProcessError as exc:
+            raise classify_media_error(exc.stderr or exc.stdout) from exc
         segments = [p for p in tmp.glob("segment.*") if p.suffix.lower() in {".mp4", ".mkv", ".webm"}]
         if not segments:
             raise RuntimeError("yt-dlp did not produce a playable segment")

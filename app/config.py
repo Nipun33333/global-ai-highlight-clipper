@@ -21,7 +21,7 @@ class Settings:
     instagram_page_token: str = os.getenv("INSTAGRAM_PAGE_ACCESS_TOKEN", "")
     instagram_graph_version: str = os.getenv("INSTAGRAM_GRAPH_VERSION", "v26.0")
     instagram_auto_upload: bool = os.getenv("INSTAGRAM_AUTO_UPLOAD", "false").lower() == "true"
-    search_terms: tuple[str, ...] = csv_env("SEARCH_TERMS", "GTA 6 live,GTA VI gameplay,GTA 6 shorts")
+    search_terms: tuple[str, ...] = csv_env("SEARCH_TERMS", "GTA 6 gameplay live,GTA VI gameplay long,GTA 6 gameplay shorts")
     region_codes: tuple[str, ...] = csv_env("REGION_CODES", "US,IN,GB,JP,BR")
     min_subscribers: int = int(os.getenv("MIN_SUBSCRIBERS", "1000000"))
     min_long_seconds: int = int(os.getenv("MIN_LONG_SECONDS", "36000"))

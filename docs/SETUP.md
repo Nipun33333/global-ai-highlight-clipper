@@ -11,7 +11,7 @@ Never commit credentials or OAuth tokens to your GitHub repository.
 
 ## 2. GTA 6-only discovery and clips
 
-The built-in title filter requires `GTA 6`, `GTA VI`, or `Grand Theft Auto VI` (and equivalents). `SEARCH_TERMS` defaults to `GTA 6 live,GTA VI gameplay,GTA 6 shorts`. Creator filter: >= 1,000,000 public subscribers.
+The built-in title filter requires `GTA 6`, `GTA VI`, or `Grand Theft Auto VI` (and equivalents). `SEARCH_TERMS` defaults to `GTA 6 gameplay live,GTA VI gameplay long,GTA 6 gameplay shorts`. Creator filter: >= 1,000,000 public subscribers.
 
 It checks sampled live broadcasts, 10+ hour video-on-demand, and short videos <= 3 minutes. For 8–9 clips per source, you need **8–9 distinct timecoded positive comment/chat clusters**. Fewer actual reactions mean fewer clips; no fictional timestamps are made.
 
@@ -102,3 +102,8 @@ The hourly scanner is allowed to **attempt at most one YouTube Short and one Ins
 Cross-run limits live in `state/processed.json` (`hourly_upload_attempts`) and are committed by the GitHub Actions workflow. This is best-effort idempotency, not a transactional guarantee: a runner crash, rejected state push, unknown API result or workflows from other installations can result in duplicates. The workflow's concurrency group serializes runs in this repository. GitHub scheduling is not exact and a missing video, absent API credentials or API failure can mean zero uploads in an hour.
 
 The workflow runs at minute **07 UTC** (minute **37 IST**) every hour, not at exactly HH:00 IST. Never store tokens in the repository.
+
+
+## If Actions says Success but no Short appears
+
+Check the **Explain scan outcome** step and reports/latest.json. YouTube may refuse video playback from GitHub-hosted machines even when metadata and live chat work. A YouTube Data API key is not a media-download credential. If media_restricted is present, use approved local MP4 footage or a direct playable HTTPS media URL through the MEDIA_SOURCE_MAP_JSON GitHub secret (JSON object of video ID to URL). Do not use a YouTube watch page or upload your personal browser cookies. Current title filtering excludes countdowns, news, mods and trailers, but cannot verify video pixels. Gemini free-model 404/403 errors are skipped and local scoring takes over; check actual free-tier eligibility before adjusting candidate IDs.

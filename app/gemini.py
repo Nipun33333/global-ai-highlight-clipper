@@ -28,6 +28,8 @@ class GeminiRouter:
         self.model_ids = tuple(dict.fromkeys(m.removeprefix("models/") for m in model_ids if m.startswith("gemini-") or m.startswith("models/gemini-")))
         self.session = requests.Session()
         self._discovered: list[str] | None = None
+        self._disabled_models: set[str] = set()
+        self.fallback_count = 0
 
     def available_models(self) -> list[str]:
         if self._discovered is not None:
@@ -59,6 +61,7 @@ class GeminiRouter:
     def evaluate(self, candidate: dict) -> dict:
         backup = {**candidate, "score": candidate["heuristic_score"], "label": "Audience reaction highlight", "model_used": "local-heuristic"}
         if not self.api_key:
+            self.fallback_count += 1
             return backup
         prompt = (
             "You are evaluating YouTube comments/live chat ONLY, not watching any video. "
@@ -69,18 +72,24 @@ class GeminiRouter:
             f"Candidate: {json.dumps({'timestamp': candidate['timestamp'], 'support': candidate['support'], 'comments': candidate['sample_comments']}, ensure_ascii=False)}"
         )
         for model in self.available_models():
+            if model in self._disabled_models:
+                continue
             payload = {"contents": [{"parts": [{"text": prompt}]}],
-                       "generationConfig": {"temperature": 0.2, "responseMimeType": "application/json", "maxOutputTokens": 200}}
+                       "generationConfig": {"temperature": 0.2, "responseMimeType": "application/json", "maxOutputTokens": 1024}}
             try:
                 r = self.session.post(f"{BASE}/models/{model}:generateContent",
                                       headers={"x-goog-api-key": self.api_key, "Content-Type": "application/json"},
                                       json=payload, timeout=35)
                 if r.status_code in {429, 404, 403, 500, 502, 503, 504}:
-                    LOG.warning("Model %s unavailable (HTTP %s); falling back", model, r.status_code)
+                    if r.status_code in {403, 404}: self._disabled_models.add(model)
+                    LOG.warning("Model %s unavailable (HTTP %s), trying next free-tier candidate", model, r.status_code)
                     continue
                 r.raise_for_status()
-                parts = r.json()["candidates"][0]["content"]["parts"]
+                response = r.json()
+                first = response.get("candidates", [{}])[0]
+                parts = first.get("content", {}).get("parts", [])
                 raw = "".join(p.get("text", "") for p in parts).strip()
+                if not raw: raise ValueError("Empty JSON; finishReason="+str(first.get("finishReason", "unknown")))
                 raw = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.I).strip()
                 obj: dict[str, Any] = json.loads(raw)
                 score = max(0., min(1., float(obj["score"])))
@@ -89,4 +98,5 @@ class GeminiRouter:
             except (ValueError, KeyError, IndexError, TypeError, requests.RequestException) as exc:
                 LOG.warning("Gemini model %s error: %s", model, str(exc)[:130])
                 continue
+        self.fallback_count += 1
         return backup

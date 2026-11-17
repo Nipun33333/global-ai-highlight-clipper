@@ -147,3 +147,10 @@ Schedule runs at `07` minutes past every **UTC** hour (for example 08:07, 09:07 
 - [GitHub Actions scheduling](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)
 
 License: MIT for the source **code** only; it grants no rights to third-party video material.
+
+
+## Troubleshooting green Actions runs with zero videos (Nov 2026)
+
+A green scheduled scan is **not** proof of successful clips. The first real run detected 18 videos and 4 live chats, but YouTube refused playback to the GitHub-hosted runner with a bot-confirmation check, so no clips were created. The Data API key cannot supply video bytes and there is no guaranteed Python fix for external playback restrictions. The bot now records sanitized media errors and avoids repeating failed section downloads per source. Supply operator-approved MP4 media or a **direct FFmpeg-playable HTTPS URL** in the private GitHub Secret MEDIA_SOURCE_MAP_JSON if playback is restricted. A YouTube watch URL is not a direct media URL. Never commit browser cookies.
+
+Discovery now requires a GTA VI gameplay/playthrough title marker and rejects obvious trailers, countdowns, news and mods. This is a conservative **metadata** filter, not visual proof of real gameplay. Gemini 403/404 model failures are skipped within each run and the router falls back to local heuristics; no paid model is automatically selected. Check the Actions summary and reports/latest.json for the real outcome before enabling public publishing.

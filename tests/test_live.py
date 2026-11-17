@@ -103,7 +103,7 @@ def test_workflow_analyzes_and_renders_from_current_live_buffer(monkeypatch, tmp
 def test_failed_live_capture_still_analyzes_chat(monkeypatch, tmp_path):
     import app.main as main
     monkeypatch.setattr(main, "discover", lambda *args: [{
-        "id":"ABC12345678", "title":"GTA 6 live", "channel_id":"ch", "channel_title":"Creator",
+        "id":"ABC12345678", "title":"GTA 6 gameplay live", "channel_id":"ch", "channel_title":"Creator",
         "subscribers":1000000, "duration":0, "is_live": True, "is_short": False,
         "chat_id":"chat", "actual_start": "2026-11-17T00:00:00Z"
     }])
