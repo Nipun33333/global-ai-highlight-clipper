@@ -1,0 +1,27 @@
+name: Import GTAClipper source into staging branch
+on:
+  push:
+    branches: [import-gtaclipper-free]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import:
+    if: github.repository == 'Nipun33333/global-ai-highlight-clipper'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Copy full upstream GTAClipper source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/V413havai/GTAClipper.git "$RUNNER_TEMP/gtaclipper-upstream"
+          rsync -a --delete --exclude='.git/' "$RUNNER_TEMP/gtaclipper-upstream/" ./
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Import full GTAClipper source from upstream'
+          git push origin HEAD:import-gtaclipper-free
