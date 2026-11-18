@@ -117,3 +117,13 @@ The repository workflow was explicitly switched to `AUTO_UPLOAD: 'true'` with `U
 ## Live release discovery diagnostics
 
 On each hourly run `reports/latest.json` now includes a `discovery` object (`search_calls`, `search_items`, `unique_ids`, `rejected_topic_or_gameplay`, `rejected_subscribers`, `rejected_duration`, `selected`). This helps distinguish API failure, metadata filtering, the 1M+ subscriber requirement, and the 10-hour VOD / 3-minute Short duration gate. Google documents search result sets as not exhaustive, especially with non-default ordering. Until Rockstar's November 19, 2026 launch, legitimate GTA VI gameplay may not exist publicly and a zero-output report may be correct. The game title and description are not proof of actual in-game footage. For media extraction blocked by the GitHub-runner bot challenge, a separately authorized playable HTTPS media source or uploaded MP4 is required. Upload remains private initially, one attempt per UTC hour.
+
+
+## Alternate private upload from approved media (no YouTube playback extraction)
+
+1. Get a direct HTTPS .mp4 URL from storage you control or from a source you have permission to use. Do not use a YouTube watch URL or Google Drive sharing page. Validate actual GTA VI footage yourself.
+2. From the latest repository root run PowerShell command: py scripts/set_approved_mp4_secret.py. It uses the GitHub CLI login, hides the pasted URL, and saves encrypted GitHub Actions secret APPROVED_GTA6_MP4_URL.
+3. Go to GitHub Actions, choose Upload approved GTA VI MP4 privately and use Run workflow. Set a truthful title and starting second in the full source video. The workflow renders 30 seconds vertically, tries YouTube OAuth upload PRIVATE, commits the attempt reservation, and verifies publication.
+4. Inspect reports/approved_upload_latest.json. Only status published_private indicates real upload; on other statuses investigate the media URL, OAuth permission, channel restriction, or hourly attempt limit. The same hourly one-upload-attempt limit is shared with the scanner.
+
+The scheduled scanner is still enabled. YouTube bot-check restrictions may continue on GitHub runners and cannot be guaranteed bypassed. The alternative is an operator-provided media source, not a YouTube extraction workaround. The title classifier is metadata-only and cannot visually prove the content is genuine game footage.
