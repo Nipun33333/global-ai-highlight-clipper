@@ -40,7 +40,8 @@ def test_hourly_discovery_always_searches_currently_live_first():
     yt = FakeYouTube()
     matches = discover(yt, ("GTA 6 long", "GTA VI short"), ("US", "IN"), 1_000_000, 36000,
                        max_calls=3, live_search_term="GTA 6 gameplay live")
-    assert yt.queries[0][0:2] == ("GTA 6 gameplay live", "live")
+    # The API's eventType=live provides the live filter; do not require the word live in q.
+    assert yt.queries[0][0:2] == ("GTA 6 gameplay", "live")
     assert len(yt.queries) == 3
     assert matches[0]["is_live"] is True
     assert matches[0]["chat_id"] == "chat-a"
