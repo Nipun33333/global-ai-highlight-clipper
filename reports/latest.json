@@ -1,17 +1,74 @@
 {
-  "generated_at": "2026-11-18T05:55:59.679903+00:00",
-  "videos": [],
+  "generated_at": "2026-11-18T06:11:15.812053+00:00",
+  "videos": [
+    {
+      "id": "kVPtsDPxC5M",
+      "title": "This Game Changed My Life, The Final GTA Online Stream Before GTA 6, What A Long Road",
+      "channel_id": "UC1NzF95Dk5tXCNdDFmyq9aQ",
+      "channel_title": "TheProfessional",
+      "subscribers": 1100000,
+      "duration": 0,
+      "is_live": true,
+      "is_short": false,
+      "url": "https://www.youtube.com/watch?v=kVPtsDPxC5M",
+      "target_highlights": 8,
+      "highlights": [
+        {
+          "timestamp": 165,
+          "score": 0.45,
+          "support": 3,
+          "model_used": "gemini-3-flash-preview",
+          "label": "Wholesome greetings and travel discussion",
+          "start": 145.0,
+          "end": 175.0,
+          "status": "media_restricted",
+          "error_code": "youtube_bot_check"
+        }
+      ],
+      "capture_note": "Live media restricted (youtube_bot_check)",
+      "media_restriction": "youtube_bot_check",
+      "live_chat_messages": 118,
+      "highlight_count": 3,
+      "note": "Fewer than 8-9 distinct positive reaction clusters in sampled chat/comments",
+      "media_source_hint": "Use an authorized direct HTTPS media source or operator-provided MP4"
+    },
+    {
+      "id": "G2ZQvDfZNmg",
+      "title": "GTA 6 LIVE, NOV 19, 12AM (BRAZIL TIME)🇧🇷 #gta #gta6 #shorts #arthurlima #gameplay",
+      "channel_id": "UCle3jFp8Ct7IXy4IsZLo_Sg",
+      "channel_title": "Artthur Lima",
+      "subscribers": 4000000,
+      "duration": 16,
+      "is_live": false,
+      "is_short": true,
+      "url": "https://www.youtube.com/watch?v=G2ZQvDfZNmg",
+      "target_highlights": 8,
+      "highlights": [],
+      "highlight_count": 0,
+      "note": "Fewer than 8-9 distinct positive reaction clusters in sampled chat/comments"
+    }
+  ],
   "stats": {
-    "discovered": 0,
-    "analyzed": 0,
+    "discovered": 2,
+    "analyzed": 2,
     "clipped": 0,
     "uploaded": 0,
     "instagram_uploaded": 0,
-    "live_found": 0,
-    "live_analyzed": 0,
+    "live_found": 1,
+    "live_analyzed": 1,
     "live_buffered": 0,
-    "media_restricted": 0,
+    "media_restricted": 1,
     "gemini_fallbacks": 0
+  },
+  "discovery": {
+    "search_calls": 3,
+    "search_items": 150,
+    "unique_ids": 148,
+    "rejected_topic_or_gameplay": 82,
+    "rejected_subscribers": 59,
+    "rejected_duration": 5,
+    "rejected_live_state": 0,
+    "selected": 2
   },
   "status": "scan_completed_no_clips"
 }
