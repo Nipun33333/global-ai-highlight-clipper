@@ -67,7 +67,13 @@ def clip_media(source: str, video_id: str, start: float, duration: float,
         args += ["-vf", "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1"]
     args += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "25", "-c:a", "aac", "-b:a", "128k",
              "-movflags", "+faststart", str(out)]
-    subprocess.run(args, check=True, timeout=900)
+    # Signed media URLs can contain credentials; never print FFmpeg stderr.
+    try:
+        subprocess.run(args, check=True, timeout=900, capture_output=True, text=True)
+    except subprocess.CalledProcessError as exc:
+        raise classify_media_error(exc.stderr or exc.stdout) from exc
+    except subprocess.TimeoutExpired as exc:
+        raise MediaAccessError("media_processing_timeout") from exc
     if not out.exists() or out.stat().st_size == 0:
         raise RuntimeError("FFmpeg produced no output")
     return out

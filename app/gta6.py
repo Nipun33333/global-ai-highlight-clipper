@@ -25,6 +25,19 @@ NOT = re.compile(
     r"\bgta\s*[-:]?\s*5\b|\bgta\s*[-:]?\s*v(?!i)\b",
     re.IGNORECASE,
 )
+# Avoid earlier GTA Online coverage and date/timed launch livestreams.
+OTHER_GAME = re.compile(
+    r"\bgta\s*[-:]?\s*(?:online|5|v(?!i))\b|\bgrand\s+theft\s+auto\s+(?:online|v(?!i)|5)\b|"
+    r"\bfive[\s-]?m\b|\brole[\s-]?play(?:ing)?\b|\bgta\s*rp\b",
+    re.IGNORECASE,
+)
+LAUNCH_SCHEDULE = re.compile(
+    r"\b(?:nov(?:ember)?|launch|release|pre[\s-]?release|before|until|"
+    r"tomorrow|midnight|12\s*a\.?m\.?|2026[\s/-]11[\s/-]19|"
+    r"time\s*zones?|early\s*access)\b",
+    re.IGNORECASE,
+)
+
 LIVE_TITLE = re.compile(
     r"\blive\b|\bstream(?:ing)?\b|\ben\s+vivo\b|\bao\s+vivo\b|\bepisode\b",
     re.IGNORECASE,
@@ -47,6 +60,8 @@ def is_gta6_gameplay_video(
     """
     title = title or ""
     if not is_gta6_video(title) or NOT.search(title):
+        return False
+    if OTHER_GAME.search(title) or LAUNCH_SCHEDULE.search(title):
         return False
     if PLAY.search(title):
         return True
