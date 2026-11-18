@@ -156,3 +156,8 @@ A green scheduled scan is **not** proof of successful clips. The first real run 
 Discovery now requires a GTA VI gameplay/playthrough title marker and rejects obvious trailers, countdowns, news and mods. This is a conservative **metadata** filter, not visual proof of real gameplay. Gemini 403/404 model failures are skipped within each run and the router falls back to local heuristics; no paid model is automatically selected. Check the Actions summary and reports/latest.json for the real outcome before enabling public publishing.
 
 **Reporting detail:** `stats.media_restricted` counts blocked source videos (once per video), including live recordings blocked before chat scoring. The workflow deletes the prior report at run start so a crashed scan cannot show stale results as current.
+
+
+## YouTube upload enabled for scheduled runs — 18 Nov 2026
+
+`AUTO_UPLOAD` is explicitly enabled in `.github/workflows/hourly.yml` for **YouTube only**, with `UPLOAD_PRIVACY=private` for the initial end-to-end integration test. The existing one-upload-attempt-per-platform-per-UTC-hour logic remains active. Do **not** interpret a green workflow as a video upload: `reports/latest.json` records `stats.clipped` and `stats.uploaded` separately. The most recent scanned run before activation discovered zero gameplay sources. GitHub-hosted YouTube playback may still be blocked; no video can be uploaded until clipping succeeds using permitted media. `INSTAGRAM_AUTO_UPLOAD` remains disabled until Meta credentials are configured. To pause YouTube publishing, edit the workflow's `AUTO_UPLOAD: 'true'` line back to `'false'`. Repository Actions variables do not override that explicit workflow setting.

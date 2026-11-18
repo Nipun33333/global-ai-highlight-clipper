@@ -37,8 +37,10 @@ jobs:
       MAX_CLIPS_PER_VIDEO: ${{ vars.MAX_CLIPS_PER_VIDEO || '9' }}
       CLIP_LEAD_SECONDS: '20'
       CLIP_AFTER_SECONDS: '10'
-      AUTO_UPLOAD: ${{ vars.AUTO_UPLOAD || 'false' }}
-      UPLOAD_PRIVACY: ${{ vars.UPLOAD_PRIVACY || 'private' }}
+      # Explicitly enabled for scheduled YouTube posting (one attempt per UTC hour).
+      # First live publishing test is private; change to false to pause automation.
+      AUTO_UPLOAD: 'true'
+      UPLOAD_PRIVACY: 'private' # first successful upload must be reviewed before public posting
       SEARCH_TERMS: ${{ vars.SEARCH_TERMS || 'GTA 6 gameplay live,GTA VI gameplay long,GTA 6 gameplay shorts' }}
       REGION_CODES: ${{ vars.REGION_CODES || 'US,IN,GB,JP,BR' }}
       FREE_MODEL_CANDIDATES: ${{ vars.FREE_MODEL_CANDIDATES || 'gemini-2.5-flash-lite,gemini-2.5-flash,gemini-3-flash-preview' }}

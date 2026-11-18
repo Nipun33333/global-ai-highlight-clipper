@@ -107,3 +107,8 @@ The workflow runs at minute **07 UTC** (minute **37 IST**) every hour, not at ex
 ## If Actions says Success but no Short appears
 
 Check the **Explain scan outcome** step and reports/latest.json. YouTube may refuse video playback from GitHub-hosted machines even when metadata and live chat work. A YouTube Data API key is not a media-download credential. If media_restricted is present, use approved local MP4 footage or a direct playable HTTPS media URL through the MEDIA_SOURCE_MAP_JSON GitHub secret (JSON object of video ID to URL). Do not use a YouTube watch page or upload your personal browser cookies. Current title filtering excludes countdowns, news, mods and trailers, but cannot verify video pixels. Gemini free-model 404/403 errors are skipped and local scoring takes over; check actual free-tier eligibility before adjusting candidate IDs.
+
+
+## Active YouTube publishing setting
+
+The repository workflow was explicitly switched to `AUTO_UPLOAD: 'true'` with `UPLOAD_PRIVACY: 'private'` on 18 November 2026 to test genuine uploads safely. This is controlled **inside the workflow YAML**, not by the `AUTO_UPLOAD`/`UPLOAD_PRIVACY` Actions variables, until the first upload is confirmed. To stop or change this behavior, edit `.github/workflows/hourly.yml`. A scanner success alone is not a publish confirmation; inspect `reports/latest.json` stats. Instagram remains disabled until Meta account publishing credentials are installed and enabled separately.
