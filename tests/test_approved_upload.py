@@ -73,7 +73,7 @@ def test_missing_source_does_not_try_upload(monkeypatch, tmp_path):
     monkeypatch.delenv("APPROVED_GTA6_MP4_URL", raising=False)
     monkeypatch.setenv("YOUTUBE_OAUTH_TOKEN", "fake-token")
     monkeypatch.setattr(approved, "upload", lambda *a, **kw: pytest.fail("should not upload"))
-    assert approved.run()["status"] == "missing_or_invalid_direct_mp4_url"
+    assert approved.run()["status"] == "missing_approved_mp4_secret"
 
 
 def test_ffmpeg_error_does_not_leak_signed_url(monkeypatch, tmp_path):

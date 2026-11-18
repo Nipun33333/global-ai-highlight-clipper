@@ -41,8 +41,11 @@ def run() -> dict:
 
     report = {"created_at": datetime.now(timezone.utc).isoformat(),
               "status": "not_attempted", "privacy": "private"}
+    if not url:
+        report["status"] = "missing_approved_mp4_secret"
+        return report
     if not direct_https_media_url(url):
-        report["status"] = "missing_or_invalid_direct_mp4_url"
+        report["status"] = "invalid_approved_mp4_url"
         return report
     if not token:
         report["status"] = "missing_youtube_oauth_token"

@@ -127,3 +127,12 @@ On each hourly run `reports/latest.json` now includes a `discovery` object (`sea
 4. Inspect reports/approved_upload_latest.json. Only status published_private indicates real upload; on other statuses investigate the media URL, OAuth permission, channel restriction, or hourly attempt limit. The same hourly one-upload-attempt limit is shared with the scanner.
 
 The scheduled scanner is still enabled. YouTube bot-check restrictions may continue on GitHub runners and cannot be guaranteed bypassed. The alternative is an operator-provided media source, not a YouTube extraction workaround. The title classifier is metadata-only and cannot visually prove the content is genuine game footage.
+
+
+## No direct MP4 link: test private publishing with a video on your Windows PC
+
+There are two distinct ways to upload:
+- **GitHub Actions** "Upload approved GTA VI MP4 privately" requires the Actions Secret \`APPROVED_GTA6_MP4_URL\` containing a direct HTTPS .mp4 URL. Missing and invalid values now receive separate status codes in \`reports/approved_upload_latest.json\`. YouTube and Google Drive share/watch links are not direct sources.
+- **Windows local file** upload does not need that Secret: put your Google OAuth Desktop \`client_secret.json\` in the repository root, use \`py -m pip install -r requirements.txt\` with working Python, install FFmpeg (e.g. \`winget install --id Gyan.FFmpeg\`), and run \`py scripts/upload_local_mp4.py --video "E:\Videos\my-gta6.mp4" --title "GTA VI gameplay #Shorts"\`. The selected video must be your footage or authorized for upload. The browser login uses your own Google account. The script makes a vertical 30-second clip and uploads it private, printing the watch URL on actual success. It never puts your local MP4 or Google secrets in GitHub.
+
+The local script is a **one-time separate publishing test** and does not share the GitHub Actions hourly upload limiter. Avoid running both in the same hour if strict one-per-hour behavior matters.
