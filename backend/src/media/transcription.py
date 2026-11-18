@@ -5,8 +5,6 @@ from typing import Dict
 from typing import List
 from typing import Optional
 from pathlib import Path
-from types import SimpleNamespace
-import os
 import assemblyai as aai
 from ..config import get_config
 import httpx
@@ -334,18 +332,7 @@ def get_video_transcript(
     provider = runtime_config.transcription_provider
 
     if provider == "whisper":
-        try:
-            return _get_transcript_with_whisper(video_path, runtime_config)
-        except Exception:
-            fallback = os.environ.get("WHISPER_FALLBACK_MODEL", "").strip()
-            if not fallback or fallback == runtime_config.whisper_model:
-                raise
-            logger.warning("Whisper failed; retrying local model %s", fallback)
-            fallback_config = SimpleNamespace(
-                whisper_model=fallback,
-                transcription_language=runtime_config.transcription_language,
-            )
-            return _get_transcript_with_whisper(video_path, fallback_config)
+        return _get_transcript_with_whisper(video_path, runtime_config)
     if provider == "youtube_captions":
         if not source_url:
             raise ValueError(
