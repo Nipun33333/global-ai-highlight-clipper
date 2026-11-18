@@ -5,6 +5,7 @@ AI-related functions for transcript analysis with enhanced precision and viralit
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Literal
 import asyncio
+import os
 import logging
 import math
 import random
@@ -1126,7 +1127,7 @@ def _is_transient_model_error(error: Exception) -> bool:
     return False
 
 
-async def _run_transcript_analysis(
+async def _run_transcript_analysis_primary(
     agent: Agent,
     prompt: str,
     timeout_seconds: Optional[float] = None,
@@ -1179,6 +1180,28 @@ async def _run_transcript_analysis(
         raise RuntimeError(
             "The AI analysis service took too long to respond. Please try again shortly."
         ) from None
+
+
+
+async def _run_transcript_analysis(
+    agent: Agent,
+    prompt: str,
+    timeout_seconds: Optional[float] = None,
+) -> Any:
+    """Attempt the local primary LLM, then try the configured local fallback on failure."""
+    try:
+        return await _run_transcript_analysis_primary(agent, prompt, timeout_seconds)
+    except Exception:
+        fallback = os.environ.get("LOCAL_LLM_FALLBACK", "").strip()
+        if not fallback:
+            raise
+        if not fallback.startswith("ollama:"):
+            raise RuntimeError("LOCAL_LLM_FALLBACK must refer to a local Ollama model") from None
+        cfg = get_config()
+        logger.warning("Primary AI model failed. Retrying with local fallback model %s", fallback)
+        with agent.override(model=_build_transcript_model(cfg, fallback)):
+            async with asyncio.timeout(timeout_seconds or TRANSCRIPT_ANALYSIS_TIMEOUT_SECONDS):
+                return await agent.run(prompt)
 
 
 def split_transcript_into_windows(
