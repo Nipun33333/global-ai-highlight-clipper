@@ -14,6 +14,11 @@ import shutil
 import sys
 from pathlib import Path
 
+# Running "py scripts/upload_local_mp4.py" starts in scripts/, not the repo root.
+# Make the package import reliable when invoked from Windows PowerShell.
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
 from app.media import clip_media
 from app.uploader import upload
 
