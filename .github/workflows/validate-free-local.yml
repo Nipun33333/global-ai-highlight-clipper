@@ -1,0 +1,34 @@
+name: Validate free local GTAClipper setup
+on:
+  push:
+    branches: [main, import-gtaclipper-free]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Python syntax
+        run: python3 -m py_compile backend/src/ai.py backend/src/media/transcription.py
+      - name: Verify Docker Compose configuration
+        run: |
+          cp .env.example .env
+          docker compose -f docker-compose.yml -f docker-compose.local.yml config -q
+      - name: Verify free fallback values
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          env=Path(".env.example").read_text()
+          overlay=Path("docker-compose.local.yml").read_text()
+          ai=Path("backend/src/ai.py").read_text()
+          trans=Path("backend/src/media/transcription.py").read_text()
+          for expected in ("TRANSCRIPTION_PROVIDER=whisper","LLM=ollama:qwen2.5:3b","WHISPER_MODEL_SIZE=base"):
+              assert expected in env, expected
+          for expected in ("LOCAL_LLM_FALLBACK","qwen2.5:1.5b","WHISPER_FALLBACK_MODEL","ollama-setup"):
+              assert expected in overlay, expected
+          assert "agent.override(model=" in ai
+          assert "WHISPER_FALLBACK_MODEL" in trans
+          print("Offline AI defaults and fallback configured.")
+          PY
