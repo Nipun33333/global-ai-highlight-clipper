@@ -21,7 +21,7 @@ class Settings:
     instagram_page_token: str = os.getenv("INSTAGRAM_PAGE_ACCESS_TOKEN", "")
     instagram_graph_version: str = os.getenv("INSTAGRAM_GRAPH_VERSION", "v26.0")
     instagram_auto_upload: bool = os.getenv("INSTAGRAM_AUTO_UPLOAD", "false").lower() == "true"
-    search_terms: tuple[str, ...] = csv_env("SEARCH_TERMS", "GTA 6 gameplay live,GTA VI gameplay long,GTA 6 gameplay shorts")
+    search_terms: tuple[str, ...] = csv_env("SEARCH_TERMS", "GTA 6 gameplay,GTA VI gameplay,Grand Theft Auto VI gameplay")
     region_codes: tuple[str, ...] = csv_env("REGION_CODES", "US,IN,GB,JP,BR")
     min_subscribers: int = int(os.getenv("MIN_SUBSCRIBERS", "1000000"))
     min_long_seconds: int = int(os.getenv("MIN_LONG_SECONDS", "36000"))
@@ -35,7 +35,7 @@ class Settings:
     clip_lead: float = float(os.getenv("CLIP_LEAD_SECONDS", "20"))
     clip_after: float = float(os.getenv("CLIP_AFTER_SECONDS", "10"))
     live_chat_delay: float = float(os.getenv("LIVE_CHAT_DELAY_SECONDS", "0"))
-    live_search_term: str = os.getenv("LIVE_SEARCH_TERM", "GTA 6 gameplay live")
+    live_search_term: str = os.getenv("LIVE_SEARCH_TERM", "GTA 6 gameplay")
     live_capture_enabled: bool = os.getenv("LIVE_CAPTURE_ENABLED", "true").lower() == "true"
     live_capture_seconds: int = int(os.getenv("LIVE_CAPTURE_SECONDS", "150"))
     max_live_captures: int = int(os.getenv("MAX_LIVE_CAPTURES_PER_RUN", "1"))

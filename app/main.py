@@ -40,9 +40,11 @@ def run_once(config: Settings) -> dict:
             "youtube": config.auto_upload,
             "instagram": config.instagram_auto_upload,
         }
+        discovery_diagnostics: dict = {}
         videos = discover(youtube, config.search_terms, config.region_codes,
                           config.min_subscribers, config.min_long_seconds, config.max_search_calls,
-                          config.live_search_term)
+                          config.live_search_term, discovery_diagnostics)
+        report["discovery"] = discovery_diagnostics
         report["stats"]["discovered"] = len(videos)
         report["stats"]["live_found"] = sum(bool(v["is_live"]) for v in videos)
         for video in videos[:config.max_videos]:
@@ -54,7 +56,7 @@ def run_once(config: Settings) -> dict:
                 for platform, active in enabled_platforms.items()
             ):
                 break
-            if not is_gta6_gameplay_video(video.get("title", "")):
+            if not is_gta6_gameplay_video(video.get("title", ""), video.get("description", ""), video.get("tags", [])):
                 continue  # additional topic gate; never export non-GTA-6 videos
             info = {k: video[k] for k in ("id", "title", "channel_id", "channel_title", "subscribers", "duration", "is_live", "is_short")}
             info["url"] = f"https://www.youtube.com/watch?v={video['id']}"

@@ -8,6 +8,12 @@ lines=["## GTA 6 gameplay scan",f"**Outcome:** {r.get('status','unknown')}","","
 for k in ("discovered","live_found","live_analyzed","analyzed","gemini_fallbacks","clipped","media_restricted","uploaded","instagram_uploaded"):
     lines.append(f"| {k} | {s.get(k,0)} |")
 lines.append("\nA successful scanner run does **not** mean a clip was published.")
+d=r.get("discovery", {})
+if d:
+    lines.append("\n**Discovery diagnostics:** " + ", ".join(
+        f"{k}={d.get(k,0)}" for k in
+        ("search_items","unique_ids","rejected_topic_or_gameplay","rejected_subscribers","rejected_duration","selected")
+    ))
 if s.get("media_restricted"):lines.append("⚠️ YouTube playback blocked on this runner. Provide approved MP4 or direct HTTPS media; YouTube Data API does not provide media bytes.")
 if s.get("gemini_fallbacks"):lines.append("⚠️ Gemini unavailable for some highlights; local heuristic used. No paid models were selected.")
 if not s.get("clipped"):lines.append("⚠️ **Zero clips generated.**")

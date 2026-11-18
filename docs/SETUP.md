@@ -112,3 +112,8 @@ Check the **Explain scan outcome** step and reports/latest.json. YouTube may ref
 ## Active YouTube publishing setting
 
 The repository workflow was explicitly switched to `AUTO_UPLOAD: 'true'` with `UPLOAD_PRIVACY: 'private'` on 18 November 2026 to test genuine uploads safely. This is controlled **inside the workflow YAML**, not by the `AUTO_UPLOAD`/`UPLOAD_PRIVACY` Actions variables, until the first upload is confirmed. To stop or change this behavior, edit `.github/workflows/hourly.yml`. A scanner success alone is not a publish confirmation; inspect `reports/latest.json` stats. Instagram remains disabled until Meta account publishing credentials are installed and enabled separately.
+
+
+## Live release discovery diagnostics
+
+On each hourly run `reports/latest.json` now includes a `discovery` object (`search_calls`, `search_items`, `unique_ids`, `rejected_topic_or_gameplay`, `rejected_subscribers`, `rejected_duration`, `selected`). This helps distinguish API failure, metadata filtering, the 1M+ subscriber requirement, and the 10-hour VOD / 3-minute Short duration gate. Google documents search result sets as not exhaustive, especially with non-default ordering. Until Rockstar's November 19, 2026 launch, legitimate GTA VI gameplay may not exist publicly and a zero-output report may be correct. The game title and description are not proof of actual in-game footage. For media extraction blocked by the GitHub-runner bot challenge, a separately authorized playable HTTPS media source or uploaded MP4 is required. Upload remains private initially, one attempt per UTC hour.

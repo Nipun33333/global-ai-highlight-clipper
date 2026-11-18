@@ -52,13 +52,15 @@ class YouTubeData:
         raise RuntimeError("YouTube API unavailable")
 
     def search(self, query: str, mode: str, region: str | None = None) -> list[dict]:
-        params = dict(part="snippet", type="video", q=query, maxResults=25, safeSearch="moderate")
+        # Use the API duration/event filters, not contradictory textual search terms.
+        # Recent-first is helpful around a new game launch; result sets are not exhaustive.
+        params = dict(part="snippet", type="video", q=query, maxResults=50, safeSearch="moderate")
         if mode == "live":
             params["eventType"] = "live"
-            params["order"] = "viewCount"
+            params["order"] = "date"
         elif mode in {"long", "short"}:
             params["videoDuration"] = mode  # long >20min; short <4min, refine exact duration below.
-            params["order"] = "viewCount"
+            params["order"] = "date"
         else:
             raise ValueError("Unexpected search mode")
         if region:
@@ -133,50 +135,90 @@ class YouTubeData:
         return list(messages.values())
 
 
+def clean_search_terms(terms: tuple[str, ...]) -> tuple[str, ...]:
+    """The API handles live/long/short filters: don't put conflicting words in q."""
+    result: list[str] = []
+    for value in terms:
+        stripped = re.sub(r"\b(?:live|long|shorts?)\b", " ", value, flags=re.IGNORECASE)
+        stripped = re.sub(r"\s+", " ", stripped).strip()
+        if stripped and stripped not in result:
+            result.append(stripped)
+    return tuple(result) or ("GTA 6 gameplay", "GTA VI gameplay")
+
+
 def discover(yt: YouTubeData, terms: tuple[str, ...], regions: tuple[str, ...], min_subs: int,
              min_long_seconds: int, max_calls: int = 3,
-             live_search_term: str = "GTA 6 gameplay live") -> list[dict]:
-    """Spend the first search on CURRENTLY LIVE GTA 6 gameplay every run.
+             live_search_term: str = "GTA 6 gameplay",
+             diagnostics: dict | None = None) -> list[dict]:
+    """Always search live first, then long (10h+) and Shorts.
 
-    With max_calls=3, remaining searches rotate long VOD and Shorts.
-    Region codes rotate; YouTube's global search is not exhaustive.
+    Each call searches at most 50 results. With three calls per hour we stay
+    within the intended search budget; neither search nor title metadata can
+    prove a genuine game is being played.
     """
+    stats = diagnostics if diagnostics is not None else {}
+    stats.update(search_calls=0, search_items=0, unique_ids=0,
+                 rejected_topic_or_gameplay=0, rejected_subscribers=0,
+                 rejected_duration=0, rejected_live_state=0, selected=0)
     hour = int(datetime.now(timezone.utc).timestamp() // 3600)
+    queries = clean_search_terms(terms)
     matches: dict[str, dict] = {}
+    search_modes = ("live", "long", "short")
     for index in range(max_calls):
-        if index == 0:
-            query, mode = live_search_term, "live"
+        mode = search_modes[index % len(search_modes)]
+        if mode == "live":
+            query = re.sub(r"\b(?:live|shorts?|long)\b", " ", live_search_term, flags=re.I).strip() or "GTA 6 gameplay"
         else:
-            query = terms[(hour * 2 + index - 1) % len(terms)]
-            mode = ("long", "short")[(hour * 2 + index - 1) % 2]
+            query = queries[(hour + (index - 1)) % len(queries)]
+        # Global unlocalized search for lives. Rotate other regions each hour.
         region = (regions[(hour + index) % len(regions)] if regions else None) if index else None
-        for result in yt.search(query, mode=mode, region=region):
+        found = yt.search(query, mode=mode, region=region)
+        stats["search_calls"] += 1
+        stats["search_items"] += len(found)
+        for result in found:
             video_id = result.get("id", {}).get("videoId")
             if video_id:
                 matches[video_id] = result
+    stats["unique_ids"] = len(matches)
     if not matches:
         return []
     videos = yt.video_details(list(matches))
-    ids = sorted({v.get("snippet", {}).get("channelId", "") for v in videos if v.get("snippet", {}).get("channelId")})
-    subs = yt.channel_subs(ids)
+    channel_ids = sorted({
+        video.get("snippet", {}).get("channelId", "")
+        for video in videos if video.get("snippet", {}).get("channelId")
+    })
+    subs = yt.channel_subs(channel_ids)
     selected = []
     for video in videos:
         snip = video.get("snippet", {})
-        # Defense-in-depth: only explicitly GTA 6-titled videos survive discovery.
-        if not is_gta6_gameplay_video(snip.get("title", "")):
+        if not is_gta6_gameplay_video(
+            snip.get("title", ""), snip.get("description", ""), snip.get("tags", [])
+        ):
+            stats["rejected_topic_or_gameplay"] += 1
             continue
         channel_id = snip.get("channelId", "")
         count = subs.get(channel_id, 0)
         if count < min_subs:
+            stats["rejected_subscribers"] += 1
             continue
-        dur = duration_seconds(video.get("contentDetails", {}).get("duration"))
-        active_chat = video.get("liveStreamingDetails", {}).get("activeLiveChatId")
+        duration = duration_seconds(video.get("contentDetails", {}).get("duration"))
+        details = video.get("liveStreamingDetails", {})
         is_live = snip.get("liveBroadcastContent") == "live"
-        is_short = bool(dur and dur <= 180 and not is_live)
-        if not is_live and not is_short and dur < min_long_seconds:
+        is_short = bool(duration and duration <= 180 and not is_live)
+        if is_live and not details.get("actualStartTime"):
+            stats["rejected_live_state"] += 1
             continue
-        selected.append({"id": video["id"], "title": snip.get("title", ""), "channel_id": channel_id,
-                         "channel_title": snip.get("channelTitle", ""), "subscribers": count,
-                         "duration": dur, "is_live": is_live, "is_short": is_short, "chat_id": active_chat,
-                         "actual_start": video.get("liveStreamingDetails", {}).get("actualStartTime")})
+        if not is_live and not is_short and duration < min_long_seconds:
+            stats["rejected_duration"] += 1
+            continue
+        selected.append({
+            "id": video["id"], "title": snip.get("title", ""),
+            "description": snip.get("description", "")[:1200],
+            "tags": snip.get("tags", [])[:30],
+            "channel_id": channel_id, "channel_title": snip.get("channelTitle", ""),
+            "subscribers": count, "duration": duration, "is_live": is_live,
+            "is_short": is_short, "chat_id": details.get("activeLiveChatId"),
+            "actual_start": details.get("actualStartTime")
+        })
+    stats["selected"] = len(selected)
     return sorted(selected, key=lambda v: (not v["is_live"], -v["subscribers"]))
