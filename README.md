@@ -1,188 +1,83 @@
-# Global AI Highlight Clipper — GTA 6 Edition
+<p align="center">
+  <img src="assets/banner.png" alt="GTAClipper home page" width="100%" />
+</p>
 
-GTA 6-only, worldwide YouTube highlight scanner and optional YouTube Shorts + Instagram Reels publisher. Every workflow run **first searches for GTA 6 gameplay streams currently LIVE**, then checks 10-hour-plus recordings and short videos. Source channels need at least 1,000,000 **public** subscribers. It uses timestamped positive comments / sampled live chat to find highlight candidates, Gemini free-tier models with fallback for scoring, yt-dlp section fetching and FFmpeg to make vertical **30-second Shorts** (20 seconds before a reaction window + 10 seconds after). OAuth can publish selected clips to your YouTube channel; Meta Graph API can cross-post the same local MP4 as an Instagram Reel.
+<h1 align="center">GTAClipper</h1>
 
-This repo does **not** contain per-creator license/campaign/rights checkers or channel approval lists. The operator supplies the media access and is responsible for permission and for complying with the relevant terms. A general API key or YouTube channel account does not itself demonstrate a license for every creator's footage.
+<p align="center">
+  <b>Turn one long video into a week of Shorts and Reels, free, on your own computer.</b><br/>
+  AI finds the best moments, crops them to 9:16 around the speaker and adds word-by-word captions.
+</p>
 
-**Status: offline-tested software MVP including a live buffering path, not a guarantee of uninterrupted, zero-cost 24/7 livestream clipping.** The local unit tests validate the logic, not external video retrieval or OAuth publishing. Automated uploads are OFF by default until you configure your own channel OAuth.
+<p align="center">
+  <a href="INSTALL.md"><b>📦 Install guide</b></a> ·
+  <a href="#whats-inside">Features</a> ·
+  <a href="#what-it-costs">Costs</a> ·
+  <a href="docs/README.md">Docs</a>
+</p>
 
-## How it works
+---
 
-```text
-GitHub Actions (hourly; manual workflow_dispatch also supported)
-  -> CURRENTLY LIVE GTA 6 gameplay search (1 dedicated global search/run)
-     -> creator >= 1M subscribers + GTA 6 title gate + live status
-     -> start one temporary 150s live A/V buffer (yt-dlp URL + FFmpeg)
-     -> simultaneously poll live chat 6 times (~20s apart)
-     -> cluster positive/hype chat, Gemini rank with model fallback
-     -> clip available buffered windows: 20s BEFORE + 10s AFTER
-     -> fallback: try time-section extraction if outside live buffer
-  -> GTA 6 10h+ recordings and <=3min Shorts (remaining 2 searches)
-     -> scan explicit timecoded comments and rank highlights
-     -> time-section extraction without a full 10h local download
-  -> up to 9 separate 30s vertical Shorts/source (8-9 target)
-  -> optionally upload the clip to your YouTube channel and/or Instagram Reels
-  -> JSON report + dedup metadata committed by workflow
-```
+## What it does
 
-**How many Shorts?** The algorithm produces **up to 9**, with **8** as the target. It will not invent 8 scenes if comments/chat don't support them. A livestream sampled briefly every hour can easily produce fewer or zero timestamped moments. It checks the title to enforce the GTA 6 topic; title metadata cannot prove that all footage is genuinely from GTA 6.
+Paste a **YouTube, Twitch or Kick** link (or upload a video file). GTAClipper:
 
-**Live while it is airing:** By default, the first eligible live channel gets a temporary **150-second audio/video capture**, while public live chat is sampled. This is the practical way to include moments from the currently playing feed without saving a whole multi-hour broadcast. Once chat reaction timestamps have been ranked, clips are created only if their full window lies inside the captured segment. Capture is discarded when processing ends. It does not run between hourly jobs, and timestamps are only approximately synchronized with the player; live delay can be tuned with `LIVE_CLOCK_SHIFT_SECONDS`.
+1. **Transcribes** the video with word-level timing
+2. **Finds the most viral moments** with AI and scores each one
+3. **Crops to vertical 9:16**, keeping the speaker's face in frame
+4. **Adds animated captions** and a hook title
+5. Gives you **ready-to-post clips** for Reels, Shorts and TikTok
 
-**No full 10-hour media file required:** For recorded uploads, `yt-dlp --download-sections` tries to fetch only each 30-second time slice. Live streams that support DVR may also allow a section fallback, but this is **not guaranteed**. A single HTTPS combined A/V playback format, exposed by yt-dlp, is needed for the temporary live buffer. The YouTube Data API itself gives metadata/live-chat messages, not media bytes.
+No watermarks. No monthly limits. Your videos stay on your computer.
 
-## Quick start
+## What's inside
 
-Python 3.11+ and FFmpeg are required. On Windows, install FFmpeg and ensure `ffmpeg` is in `PATH`.
+- 🎬 **AI clip picking:** Gemini, GPT, Claude or a free local model chooses the best moments
+- 🗣️ **Word-by-word captions** in many styles, including the **GTAClipper style** (bold caps with a yellow highlight)
+- 🇮🇳 **Hindi and Hinglish captions** that render properly, plus 99+ spoken languages
+- 🙂 **Face tracking** so the speaker stays centred, with speaker switching for podcasts
+- 📺 **YouTube, Twitch and Kick** links, or upload your own files
+- ✂️ **Clip editor:** fix words, change timing, framing and style, then export
+- 🤖 **Works with AI agents:** an MCP server lets Claude, Cursor and others make clips for you
+- 💳 **Optional paid hosting:** built-in Razorpay (India, UPI) or Stripe subscriptions if you want to run it as a service
 
-```bash
-python -m venv .venv
-# Windows PowerShell: .venv\Scripts\Activate.ps1
-# macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
-python -m pytest -q
-python scripts/demo.py
-cp .env.example .env  # on Windows use: copy .env.example .env
-```
+## Install
 
-Fill these in `.env`:
+👉 **Follow the step-by-step [Install guide](INSTALL.md).** It's written for beginners and takes about 30 minutes, most of it waiting for the first download.
 
-```dotenv
-YOUTUBE_API_KEY=your_youtube_data_api_v3_key
-GEMINI_API_KEY=your_gemini_key
-SOURCE_MODE=yt_dlp
-LIVE_SEARCH_TERM=GTA 6 gameplay live
-LIVE_CAPTURE_ENABLED=true
-LIVE_CAPTURE_SECONDS=150
-LIVE_POLLS=6
-MAX_LIVE_CAPTURES_PER_RUN=1
-MAX_CLIPS_PER_VIDEO=9
-TARGET_CLIPS_PER_VIDEO=8
-CLIP_LEAD_SECONDS=20
-CLIP_AFTER_SECONDS=10
-AUTO_UPLOAD=false
-UPLOAD_PRIVACY=private
-INSTAGRAM_AUTO_UPLOAD=false
-# Hard cap: max 1 YouTube Short + 1 Instagram Reel per UTC hour.
-```
-
-Then run:
+The short version, if you already use Docker:
 
 ```bash
-python -m app.main
+git clone https://github.com/V413havai/GTAClipper.git
+cd GTAClipper
+cp .env.example .env      # then add ASSEMBLY_AI_API_KEY and GOOGLE_API_KEY
+./start.sh                # or: docker compose up -d --build
 ```
 
-If you prefer your own MP4 files instead of yt-dlp, set `SOURCE_MODE=provided` and put a file at `media/<YouTube-video-id>.mp4`, or use a direct HTTPS URL in the `MEDIA_SOURCE_MAP_JSON` environment variable. That direct URL must be playable by FFmpeg (a normal YouTube watch page is not).
+Open **http://localhost:3107**, create an account and paste a video link.
 
-## Automatic upload to your channel
+## What it costs
 
-1. In Google Cloud, configure OAuth credentials and download Desktop client `client_secret.json` to your **local** project folder. Do not commit it.
-2. Run `python scripts/oauth_setup.py` locally and authorize **your intended channel**.
-3. Save the generated token JSON in GitHub Actions **secret** `YOUTUBE_OAUTH_TOKEN`.
-4. Set Actions **variable** `AUTO_UPLOAD=true`. Start with `UPLOAD_PRIVACY=private`, then switch to `public` or `unlisted` when you're ready.
-5. Add YouTube Data API and Gemini API keys as Actions **secrets**. Run Actions > Hourly worldwide highlight scanner > Run workflow.
+GTAClipper itself is free. You pay the AI services directly, per use:
 
-The uploader makes ordinary YouTube Shorts uploads. It does **not** create a new live broadcast on your channel. YouTube may impose API verification / privacy limitations on uploads; please verify your project's current status.
-
-## Optional Instagram Reels cross-posting
-
-The same vertical 30-second GTA 6 clip can be posted to **both** platforms or **Instagram only**, via independent switches. Each hourly run picks at most one eligible highlight to publish to its enabled destinations; it does not upload all 8–9 candidates. It is not a live broadcast on Instagram; it is a Reel after clipping. Both publishing switches are `false` by default. Upload attempts are reserved per platform and UTC-hour in persisted state, so a manual rerun in the same hour will not trigger another post. If YouTube succeeds but Instagram fails, later runs will not knowingly repost the same clip to YouTube. A failed/ambiguous request also counts as that hour's attempt; it may be retried in a later hour.
-
-This project uses **Meta Instagram API with Facebook Login** because its **resumable local-file upload** does not need a paid/public video host. Your account must be an **Instagram Professional (Creator/Business)** account linked to a Facebook Page. A Meta Business app / appropriate access must provide the Page access token with `instagram_basic`, `instagram_content_publish`, `pages_read_engagement` and `pages_show_list` as applicable. See [Instagram setup](docs/SETUP.md#instagram-reels-publishing). Personal-only Instagram accounts and direct Instagram username/password posting are not supported.
-
-Add GitHub Actions **secrets** `IG_USER_ID` (Instagram professional account's numeric ID) and `INSTAGRAM_PAGE_ACCESS_TOKEN` (the Page access token), then Actions **variables** `INSTAGRAM_AUTO_UPLOAD=true` and optionally `INSTAGRAM_GRAPH_VERSION=v26.0`. To also upload YouTube Shorts, keep `AUTO_UPLOAD=true` with its own YouTube OAuth secret. Never put access tokens in public variables or repository files. Local MP4 files are uploaded via Meta container -> resumable transfer -> status polling -> publish; no third-party hosting bill is required.
-
-A **hard limit of one upload attempt per platform per UTC hour** applies to both scheduled and manual runs (maximum 24 YouTube Shorts + 24 Instagram Reels per 24h if every hour succeeds). Publishing caps, account eligibility, token lifetime, rate limits and API policies apply. No Instagram posts can happen until credentials are configured and the Instagram switch is explicitly enabled. Real Instagram posting has **not** been end-to-end tested with your account.
-
-## GitHub Actions settings
-
-| Setting | Type | Purpose |
+| Service | What it does | Cost |
 |---|---|---|
-| `YOUTUBE_API_KEY` | Secret | YouTube discovery/comments |
-| `GEMINI_API_KEY` | Secret | Model routing |
-| `YOUTUBE_OAUTH_TOKEN` | Secret | Required to enable YouTube uploads |
-| `IG_USER_ID` | Secret | Instagram professional account numeric ID |
-| `INSTAGRAM_PAGE_ACCESS_TOKEN` | Secret | Linked Facebook Page access token for the Meta API |
-| `INSTAGRAM_AUTO_UPLOAD` | Variable | `false` by default; set `true` to post Reels |
-| `INSTAGRAM_GRAPH_VERSION` | Variable | Meta Graph API version (`v26.0` default) |
-| `MEDIA_SOURCE_MAP_JSON` | Secret (optional) | Video ID -> direct FFmpeg-compatible HTTPS URL |
-| `SOURCE_MODE` | Variable (optional) | `yt_dlp` (default) or `provided` |
-| `LIVE_SEARCH_TERM` | Variable | Dedicated search on every workflow start (`GTA 6 gameplay live`) |
-| `LIVE_CAPTURE_ENABLED` | Variable | Capture a bounded live sample concurrently with chat polling (`true`) |
-| `LIVE_CAPTURE_SECONDS` | Variable | Temporary live segment length: 30–300 (default `150`) |
-| `MAX_LIVE_CAPTURES_PER_RUN` | Variable | Default `1`; up to 2, sequentially |
-| `LIVE_POLLS` | Variable | Samples live-chat API per stream (default `6`) |
-| `LIVE_CLOCK_SHIFT_SECONDS` | Variable | Approximate playback/chat alignment tuning (default `0`) |
-| `AUTO_UPLOAD` | Variable | `false` until opted in |
-| `UPLOAD_PRIVACY` | Variable | `private` / `unlisted` / `public` |
-| `TARGET_CLIPS_PER_VIDEO` | Variable | `8` (target only) |
-| `MAX_CLIPS_PER_VIDEO` | Variable | `9` |
-| `SEARCH_TERMS` | Variable | GTA 6-only search terms |
-| `REGION_CODES` | Variable | Scan rotation, not exhaustive coverage |
-| `FREE_MODEL_CANDIDATES` | Variable | Operator-reviewed models available on Gemini free tier |
+| AssemblyAI | Transcription | about $0.21 per hour of video (new accounts get free credit) |
+| Google Gemini | Picks the best moments | a few cents per video |
 
-Schedule runs at `07` minutes past every **UTC** hour (for example 08:07, 09:07 UTC), not at exactly the top of the hour. Scheduled GitHub Actions jobs can be delayed, dropped, or disabled; jobs terminate and cannot record continuously. Default 3 searches/hour means up to 72 `search.list` calls per day, within the documented default separate 100-search allowance, subject to changes and project-specific quotas. Default repository actions budget / runtime are not an unlimited free always-on machine. Uploads and media extraction might hit rate limits. See [setup](docs/SETUP.md) and [architecture](docs/ARCHITECTURE.md).
+Typical cost: **under ₹50 per hour of video**. You can also use a free local model with [Ollama](https://ollama.com) instead of Gemini.
 
-## Gemini cost and fallback
+## Need help?
 
-`FREE_MODEL_CANDIDATES` is a **manually reviewed free-tier model allowlist** (example: `gemini-2.5-flash-lite,gemini-2.5-flash,gemini-3-flash-preview`). Model availability and free pricing are distinct; automatically adding **every** listed model could lead to paid usage on a billed project. The router switches to the next configured model on failures and finally to a local heuristic. Only the first 2 windows per run are sent to Gemini by default, which helps stay under free API limits. A free tier does not guarantee 24-hour uninterrupted unlimited inference.
+- Something not working? See [Troubleshooting](INSTALL.md#troubleshooting) in the install guide.
+- Found a bug or have an idea? [Open an issue](https://github.com/V413havai/GTAClipper/issues).
 
-## Current technical limits
+## License
 
-- Comments on ordinary videos do not correspond to video time unless their text contains timestamps like `2:14:20`; the comment publication time cannot identify a scene. Live chat times are approximate offsets from the stream start.
-- The workflow samples live-chat streams and captures at most 1 live source by default (150s). It cannot watch every stream worldwide continuously. An 8–9 clip count is a target, not a per-run guarantee.
-- A live stream can be geo-restricted, use split A/V formats, lack public chat, expose delayed playback, or prevent extraction from GitHub-hosted IP addresses. Those cases may be metadata-only.
-- Buffered video/chat alignment is approximate, especially on low-latency streams, so expect timing adjustments before unattended public uploads.
-- `yt-dlp` section retrieval relies on accessible playback; it can break after site changes, require authentication, fail on livestreams, or be unavailable in GitHub-hosted runners.
-- Sources are selected by GTA 6 **title** only, not verified by vision. Upload to your own channel requires valid OAuth.
-- Clips are not merged together: **each** 30-second highlight becomes an individual Short.
+GTAClipper is free and open source under the **AGPL-3.0** license. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
-## Reference documentation
+If you run a modified version as a public website, the license requires you to share your changes with its users.
 
-- [Meta Instagram Graph API publishing](https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api)
-- [YouTube Data API quotas](https://developers.google.com/youtube/data/determine_quota_cost)
-- [YouTube API Developer Policies](https://developers.google.com/youtube/terms/developer-policies)
-- [yt-dlp download-sections](https://github.com/yt-dlp/yt-dlp#download-options)
-- [Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing)
-- [GitHub Actions scheduling](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)
+---
 
-License: MIT for the source **code** only; it grants no rights to third-party video material.
-
-
-## Troubleshooting green Actions runs with zero videos (Nov 2026)
-
-A green scheduled scan is **not** proof of successful clips. The first real run detected 18 videos and 4 live chats, but YouTube refused playback to the GitHub-hosted runner with a bot-confirmation check, so no clips were created. The Data API key cannot supply video bytes and there is no guaranteed Python fix for external playback restrictions. The bot now records sanitized media errors and avoids repeating failed section downloads per source. Supply operator-approved MP4 media or a **direct FFmpeg-playable HTTPS URL** in the private GitHub Secret MEDIA_SOURCE_MAP_JSON if playback is restricted. A YouTube watch URL is not a direct media URL. Never commit browser cookies.
-
-Discovery now requires a GTA VI gameplay/playthrough title marker and rejects obvious trailers, countdowns, news and mods. This is a conservative **metadata** filter, not visual proof of real gameplay. Gemini 403/404 model failures are skipped within each run and the router falls back to local heuristics; no paid model is automatically selected. Check the Actions summary and reports/latest.json for the real outcome before enabling public publishing.
-
-**Reporting detail:** `stats.media_restricted` counts blocked source videos (once per video), including live recordings blocked before chat scoring. The workflow deletes the prior report at run start so a crashed scan cannot show stale results as current.
-
-
-## YouTube upload enabled for scheduled runs — 18 Nov 2026
-
-`AUTO_UPLOAD` is explicitly enabled in `.github/workflows/hourly.yml` for **YouTube only**, with `UPLOAD_PRIVACY=private` for the initial end-to-end integration test. The existing one-upload-attempt-per-platform-per-UTC-hour logic remains active. Do **not** interpret a green workflow as a video upload: `reports/latest.json` records `stats.clipped` and `stats.uploaded` separately. The most recent scanned run before activation discovered zero gameplay sources. GitHub-hosted YouTube playback may still be blocked; no video can be uploaded until clipping succeeds using permitted media. `INSTAGRAM_AUTO_UPLOAD` remains disabled until Meta credentials are configured. To pause YouTube publishing, edit the workflow's `AUTO_UPLOAD: 'true'` line back to `'false'`. Repository Actions variables do not override that explicit workflow setting.
-
-
-## Improved discovery around GTA VI launch (Nov 18, 2026)
-
-Rockstar's published release date is **November 19, 2026**, so before the game is playable there may be no genuine public gameplay videos. The scanner does not fabricate matches and may legitimately upload **zero** Shorts. After launch, searches return up to 50 candidates per query (previously 25), use recent-first ordering, remove contradictory `live`/`long`/`shorts` words from query text, and rotate GTA VI spellings across three searches/hour (one live, one long, one Shorts). This does not guarantee comprehensive discovery. Search queries are unlocalized for live and rotate regions for the other two searches. Publisher gate remains >=1,000,000 public subscribers and 10-hour+ VOD or <=180-second Shorts; active live streams are allowed. In addition to explicit gameplay titles, `GTA VI LIVE` / `GTA VI stream` titles can qualify when description/tags explicitly say gameplay, while obvious countdown/trailer/news/mod titles are still rejected. **This is public metadata-based classification, not proof of genuine gameplay footage.** Report `discovery` includes how many candidates were found and rejected, for actionable debugging.
-
-YouTube's playback bot-check on GitHub-hosted IPs is a separate issue this code cannot override. Actual clipping and upload require video bytes from an authorized playable source. `AUTO_UPLOAD=true` stays private-only for the first verified clip. Avoid claiming success when `stats.uploaded` is 0.
-
-
-## Manual private upload when YouTube playback is blocked
-
-A successful scanner run does not mean a video was published. YouTube's bot challenge on cloud-hosted playback cannot be reliably fixed with another Data API key. An alternative path now exists for an **operator-authorized direct HTTPS MP4**: the GitHub Actions workflow **Upload approved GTA VI MP4 privately**. It renders an actual 30-second vertical clip with FFmpeg and attempts to publish it privately with the existing YouTube OAuth secret. It respects the same persisted one-attempt-per-UTC-hour limit as the automatic scanner, and fails its final verification unless YouTube returns a real video ID. This workflow does not scrape YouTube and does not prove the footage is genuinely GTA VI: verify the original first.
-
-To configure: host your own/approved downloadable video as a direct HTTPS URL whose path ends in .mp4; this is different from a YouTube watch URL or a Google Drive sharing page. In Windows PowerShell from the latest repository root run: **py scripts/set_approved_mp4_secret.py**. Enter the direct MP4 URL into the hidden prompt. This stores it as GitHub Actions Secret **APPROVED_GTA6_MP4_URL** with GitHub CLI and never commits the URL. Then open **Actions -> Upload approved GTA VI MP4 privately -> Run workflow**, enter an accurate title and the clip starting second, and run it. For a result, inspect **reports/approved_upload_latest.json** and the workflow run. A successful private upload shows published_private and a watch URL. A failed one shows a sanitized error code and does not claim publication.
-
-The normal hourly scanner remains on and uploads private only; title checks now reject GTA Online, GTA V, FiveM/RP and launch-date/countdown streams even when SEO tags claim gameplay. Actual YouTube playback from the cloud runner can still be blocked without an authorized accessible media source.
-
-
-## Troubleshooting the approved private upload error (2026-11-18)
-
-If the manual workflow says \`missing_approved_mp4_secret\`, the GitHub Actions Secret \`APPROVED_GTA6_MP4_URL\` has not been populated. The earlier two private-upload workflow attempts returned \`missing_or_invalid_direct_mp4_url\`; the new status makes missing vs invalid URLs distinct. To configure, run \`py scripts/set_approved_mp4_secret.py\` in PowerShell, enter an **actual direct, authorized HTTPS MP4 URL**, then rerun the manual workflow. A YouTube watch page or Drive sharing page cannot be used as media input. The Secret's existence can be inspected in Settings > Secrets and variables > Actions; its contents won't be displayed by GitHub.
-
-**No direct MP4 link?** If the footage already exists on your **Windows PC**, a separate one-time private upload can now run locally without any MP4 URL or GitHub Actions Secret. Use \`py scripts/upload_local_mp4.py --video "E:\Videos\my-gameplay.mp4" --title "GTA VI gameplay #Shorts"\` from the repository root. Install Python packages from \`requirements.txt\` and FFmpeg first; keep \`client_secret.json\` in the repo root (gitignored). The script checks the local file, prompts for confirmation, opens Google browser authorization if needed, renders a 30-second vertical clip and uploads it **private** to your selected YouTube channel. It prints the video URL only when the API confirms publication. Never share OAuth tokens, client secret JSON or the private footage with a third party.
-
-**Important:** The one-attempt-per-UTC-hour GitHub limit is enforced for the two GitHub Actions workflows; a manual upload run on your PC does not reserve that GitHub state. Do not use the local uploader concurrently with the scheduled scanner if you require a strict account-wide one-upload-attempt-per-hour rule. None of this guarantees that authentic GTA VI footage is available yet.
+<p align="center">Made by <a href="https://www.instagram.com/vaibhavv.ai/">Vaibhav Hedaoo (@vaibhavv.ai)</a> · <a href="https://aitoolbox.in">AiToolBox.in</a></p>
