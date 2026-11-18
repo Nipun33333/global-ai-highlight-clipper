@@ -1,47 +1,83 @@
-# Global AI Highlight Clipper — Free Local Edition
+<p align="center">
+  <img src="assets/banner.png" alt="GTAClipper home page" width="100%" />
+</p>
 
-A Windows-friendly installation of the open-source [GTAClipper](https://github.com/V413havai/GTAClipper) project, configured for **local transcription and local AI clip selection**. This repository contains the full GTAClipper application source (excluding upstream GitHub Actions workflows).
+<h1 align="center">GTAClipper</h1>
 
-## Free AI stack for Windows 11 (16 GB RAM)
+<p align="center">
+  <b>Turn one long video into a week of Shorts and Reels, free, on your own computer.</b><br/>
+  AI finds the best moments, crops them to 9:16 around the speaker and adds word-by-word captions.
+</p>
 
-| Task | Primary | Fallback |
-| --- | --- | --- |
-| Find video highlights | Ollama: Qwen2.5 3B | Ollama: Qwen2.5 1.5B |
-| Audio transcription + word timings | Whisper Base | Whisper Tiny |
-| Crop, captions, export | FFmpeg + GTAClipper | — |
+<p align="center">
+  <a href="INSTALL.md"><b>📦 Install guide</b></a> ·
+  <a href="#whats-inside">Features</a> ·
+  <a href="#what-it-costs">Costs</a> ·
+  <a href="docs/README.md">Docs</a>
+</p>
 
-The free models run on your own PC without API keys. No per-request charges for Ollama, Whisper or FFmpeg. Processing will be slower on CPU than GPU. Model downloads, disk space, electricity and any optional third-party service costs still apply.
+---
 
-## Run on your Windows laptop
+## What it does
 
-1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) with WSL2. Start it and wait for **Engine running**.
-2. Download this GitHub repository as ZIP. Extract to a short folder path such as Documents\GTAClipper.
-3. Open PowerShell in the extracted folder (type **powershell** into File Explorer's address bar).
-4. Run:
+Paste a **YouTube, Twitch or Kick** link (or upload a video file). GTAClipper:
 
-    powershell -ExecutionPolicy Bypass -File .\setup-free-windows.ps1
+1. **Transcribes** the video with word-level timing
+2. **Finds the most viral moments** with AI and scores each one
+3. **Crops to vertical 9:16**, keeping the speaker's face in frame
+4. **Adds animated captions** and a hook title
+5. Gives you **ready-to-post clips** for Reels, Shorts and TikTok
 
-5. Docker builds the application and downloads both Ollama models. Open **http://localhost:3107** when the app is ready.
-6. Create your local account. Upload your own video or paste a finished YouTube video link to generate Shorts.
+No watermarks. No monthly limits. Your videos stay on your computer.
 
-Minimum: 8 GB RAM; recommended: **16 GB RAM and 25+ GB free disk**. Give Docker Desktop 8 GB or more memory if possible. Initial setup needs an internet connection.
+## What's inside
 
-## Daily commands
+- 🎬 **AI clip picking:** Gemini, GPT, Claude or a free local model chooses the best moments
+- 🗣️ **Word-by-word captions** in many styles, including the **GTAClipper style** (bold caps with a yellow highlight)
+- 🇮🇳 **Hindi and Hinglish captions** that render properly, plus 99+ spoken languages
+- 🙂 **Face tracking** so the speaker stays centred, with speaker switching for podcasts
+- 📺 **YouTube, Twitch and Kick** links, or upload your own files
+- ✂️ **Clip editor:** fix words, change timing, framing and style, then export
+- 🤖 **Works with AI agents:** an MCP server lets Claude, Cursor and others make clips for you
+- 💳 **Optional paid hosting:** built-in Razorpay (India, UPI) or Stripe subscriptions if you want to run it as a service
 
-Run these in PowerShell from the repository directory:
+## Install
 
-- Start: docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
-- Stop: docker compose -f docker-compose.yml -f docker-compose.local.yml down
-- Troubleshoot: docker compose -f docker-compose.yml -f docker-compose.local.yml logs --tail 100 backend worker ollama ollama-setup
+👉 **Follow the step-by-step [Install guide](INSTALL.md).** It's written for beginners and takes about 30 minutes, most of it waiting for the first download.
 
-Read [FREE_LOCAL_SETUP.md](FREE_LOCAL_SETUP.md) for detailed instructions.
+The short version, if you already use Docker:
 
-## Fallback behavior and limitations
+```bash
+git clone https://github.com/V413havai/GTAClipper.git
+cd GTAClipper
+cp .env.example .env      # then add ASSEMBLY_AI_API_KEY and GOOGLE_API_KEY
+./start.sh                # or: docker compose up -d --build
+```
 
-If an AI inference call fails, the clip analysis runner retries with Qwen2.5 1.5B. If Whisper Base fails, transcription retries with Whisper Tiny. These are **best-effort** fallbacks, not guarantees of success. Smaller models can produce lower-quality transcripts or rankings.
+Open **http://localhost:3107**, create an account and paste a video link.
 
-**Live streams are not supported**: wait for a YouTube/Twitch/Kick broadcast to end and process the VOD, or upload a recording you have permission to use. YouTube downloading may require authentication or fail due to platform restrictions. The upstream application's optional cloud and premium features may require separate accounts or paid services; the default clipping workflow uses no paid AI API.
+## What it costs
 
-## Attribution and license
+GTAClipper itself is free. You pay the AI services directly, per use:
 
-This is a modified distribution of **GTAClipper**, originally by Vaibhav Hedaoo, under **AGPL-3.0**. The original [README](README_UPSTREAM.md), [LICENSE](LICENSE), and [NOTICE](NOTICE) are preserved. If you deploy modified code publicly, comply with the AGPL's source-sharing requirements.
+| Service | What it does | Cost |
+|---|---|---|
+| AssemblyAI | Transcription | about $0.21 per hour of video (new accounts get free credit) |
+| Google Gemini | Picks the best moments | a few cents per video |
+
+Typical cost: **under ₹50 per hour of video**. You can also use a free local model with [Ollama](https://ollama.com) instead of Gemini.
+
+## Need help?
+
+- Something not working? See [Troubleshooting](INSTALL.md#troubleshooting) in the install guide.
+- Found a bug or have an idea? [Open an issue](https://github.com/V413havai/GTAClipper/issues).
+
+## License
+
+GTAClipper is free and open source under the **AGPL-3.0** license. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+If you run a modified version as a public website, the license requires you to share your changes with its users.
+
+---
+
+<p align="center">Made by <a href="https://www.instagram.com/vaibhavv.ai/">Vaibhav Hedaoo (@vaibhavv.ai)</a> · <a href="https://aitoolbox.in">AiToolBox.in</a></p>
